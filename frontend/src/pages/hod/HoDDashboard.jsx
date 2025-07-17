@@ -2,78 +2,46 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Grid,
-  Paper,
   Typography,
+  Paper,
   Card,
   CardContent,
-  Divider,
-  Button,
-  IconButton,
-  Tooltip,
   CircularProgress,
   Alert,
+  Divider,
   List,
   ListItem,
   ListItemText,
-  ListItemAvatar,
-  Avatar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip
+  ListItemIcon
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import { motion } from 'framer-motion';
+import { api } from '../../services/api_enhanced';
 
 // Icons
 import PeopleIcon from '@mui/icons-material/People';
 import SchoolIcon from '@mui/icons-material/School';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import WarningIcon from '@mui/icons-material/Warning';
-import BusinessIcon from '@mui/icons-material/Business';
-import GroupIcon from '@mui/icons-material/Group';
-import BarChartIcon from '@mui/icons-material/BarChart';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 
-import { api } from '../../services/api_enhanced';
-
-// Styled components
-const StatsCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-  '&:hover': {
-    transform: 'translateY(-5px)',
-    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
-  },
-}));
-
-const ChartContainer = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(2),
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-}));
+// Charts
+import PerformanceChart from '../../components/charts/PerformanceChart';
+import BranchDistributionChart from '../../components/charts/BranchDistributionChart';
 
 const HoDDashboard = () => {
+  const [departmentStats, setDepartmentStats] = useState({
+    totalFaculty: 0,
+    totalStudents: 0,
+    totalCourses: 0,
+    achievements: 0,
+    avgPerformance: 0,
+    passRate: 0
+  });
+  const [performanceData, setPerformanceData] = useState([]);
+  const [branchData, setBranchData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalFaculty: 0,
-    avgCGPA: 0,
-    atRiskStudents: 0,
-    passPercentage: 0,
-    achievements: 0
-  });
-  const [recentActivities, setRecentActivities] = useState([]);
-  const [facultyPerformance, setFacultyPerformance] = useState([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -86,67 +54,48 @@ const HoDDashboard = () => {
         // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Mock data
-        setStats({
-          totalStudents: 245,
-          totalFaculty: 12,
-          avgCGPA: 7.6,
-          atRiskStudents: 18,
-          passPercentage: 92,
-          achievements: 78
+        // Mock department stats
+        setDepartmentStats({
+          totalFaculty: 24,
+          totalStudents: 480,
+          totalCourses: 32,
+          achievements: 156,
+          avgPerformance: 8.4,
+          passRate: 92
         });
         
-        setRecentActivities([
-          { id: 1, type: 'faculty', name: 'Dr. Sharma', action: 'Added 5 new achievements', time: '2 hours ago' },
-          { id: 2, type: 'report', action: 'Department performance report generated', time: 'Yesterday' },
-          { id: 3, type: 'student', name: 'Anusuri Bharathi', action: 'Won national coding competition', time: '2 days ago' },
-          { id: 4, type: 'course', name: 'Machine Learning', action: 'Course completion rate improved by 8%', time: '3 days ago' }
+        // Mock performance data
+        setPerformanceData([
+          { semester: 'Sem 1', avgSGPA: 8.2 },
+          { semester: 'Sem 2', avgSGPA: 8.5 },
+          { semester: 'Sem 3', avgSGPA: 8.3 },
+          { semester: 'Sem 4', avgSGPA: 8.7 },
+          { semester: 'Sem 5', avgSGPA: 8.6 },
+          { semester: 'Sem 6', avgSGPA: 8.9 }
         ]);
         
-        setFacultyPerformance([
-          { id: 1, name: 'Dr. Sharma', students: 45, avgStudentCGPA: 8.2, achievements: 23, status: 'Excellent' },
-          { id: 2, name: 'Prof. Patel', students: 38, avgStudentCGPA: 7.8, achievements: 18, status: 'Good' },
-          { id: 3, name: 'Dr. Gupta', students: 42, avgStudentCGPA: 7.5, achievements: 15, status: 'Good' },
-          { id: 4, name: 'Prof. Singh', students: 40, avgStudentCGPA: 6.9, achievements: 12, status: 'Average' },
-          { id: 5, name: 'Dr. Kumar', students: 35, avgStudentCGPA: 7.1, achievements: 10, status: 'Good' }
+        // Mock branch data
+        setBranchData([
+          { branch: 'CSE-AIML', count: 120 },
+          { branch: 'CSE-DS', count: 85 },
+          { branch: 'CSE-Core', count: 150 },
+          { branch: 'CSE-IoT', count: 65 },
+          { branch: 'CSE-Cyber', count: 60 }
         ]);
-        
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setError("Failed to load dashboard data. Please try again later.");
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
-
+    
     fetchDashboardData();
   }, []);
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 }
-  };
-
   if (loading) {
     return (
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: 'calc(100vh - 64px)' 
-      }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
         <CircularProgress />
       </Box>
     );
@@ -154,457 +103,181 @@ const HoDDashboard = () => {
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
+      <Alert severity="error" sx={{ mt: 2 }}>
+        {error}
+      </Alert>
     );
   }
 
   return (
     <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
     >
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+        <Typography variant="h4" gutterBottom>
           Department Dashboard
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Welcome back! Here's an overview of your department's performance.
+          Overview of Computer Science Department performance and metrics
         </Typography>
       </Box>
-
+      
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={4}>
-          <motion.div variants={itemVariants}>
-            <StatsCard>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Total Students
-                    </Typography>
-                    <Typography variant="h4" sx={{ my: 1, fontWeight: 'bold' }}>
-                      {stats.totalStudents}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <TrendingUpIcon color="success" fontSize="small" />
-                      <Typography variant="body2" color="success.main" sx={{ ml: 0.5 }}>
-                        +15
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
-                        this semester
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ 
-                    backgroundColor: 'rgba(69, 104, 220, 0.1)', 
-                    borderRadius: '50%', 
-                    p: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <PeopleIcon color="primary" fontSize="large" />
-                  </Box>
-                </Box>
-              </CardContent>
-            </StatsCard>
-          </motion.div>
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                Faculty Members
+              </Typography>
+              <Typography variant="h3" component="div" color="primary">
+                {departmentStats.totalFaculty}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                In the department
+              </Typography>
+            </CardContent>
+          </Card>
         </Grid>
-
+        
         <Grid item xs={12} sm={6} md={4}>
-          <motion.div variants={itemVariants}>
-            <StatsCard>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Faculty Members
-                    </Typography>
-                    <Typography variant="h4" sx={{ my: 1, fontWeight: 'bold' }}>
-                      {stats.totalFaculty}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <TrendingUpIcon color="success" fontSize="small" />
-                      <Typography variant="body2" color="success.main" sx={{ ml: 0.5 }}>
-                        +2
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
-                        this year
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ 
-                    backgroundColor: 'rgba(176, 106, 179, 0.1)', 
-                    borderRadius: '50%', 
-                    p: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <GroupIcon sx={{ color: '#b06ab3' }} fontSize="large" />
-                  </Box>
-                </Box>
-              </CardContent>
-            </StatsCard>
-          </motion.div>
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                Students
+              </Typography>
+              <Typography variant="h3" component="div" color="info.main">
+                {departmentStats.totalStudents}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Currently enrolled
+              </Typography>
+            </CardContent>
+          </Card>
         </Grid>
-
+        
         <Grid item xs={12} sm={6} md={4}>
-          <motion.div variants={itemVariants}>
-            <StatsCard>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Department Avg. CGPA
-                    </Typography>
-                    <Typography variant="h4" sx={{ my: 1, fontWeight: 'bold' }}>
-                      {stats.avgCGPA}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <TrendingUpIcon color="success" fontSize="small" />
-                      <Typography variant="body2" color="success.main" sx={{ ml: 0.5 }}>
-                        +0.2
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
-                        vs last semester
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ 
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)', 
-                    borderRadius: '50%', 
-                    p: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <SchoolIcon color="success" fontSize="large" />
-                  </Box>
-                </Box>
-              </CardContent>
-            </StatsCard>
-          </motion.div>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <motion.div variants={itemVariants}>
-            <StatsCard>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      At-Risk Students
-                    </Typography>
-                    <Typography variant="h4" sx={{ my: 1, fontWeight: 'bold' }}>
-                      {stats.atRiskStudents}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <TrendingDownIcon color="error" fontSize="small" />
-                      <Typography variant="body2" color="error.main" sx={{ ml: 0.5 }}>
-                        -5
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
-                        vs last semester
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ 
-                    backgroundColor: 'rgba(244, 67, 54, 0.1)', 
-                    borderRadius: '50%', 
-                    p: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <WarningIcon color="error" fontSize="large" />
-                  </Box>
-                </Box>
-              </CardContent>
-            </StatsCard>
-          </motion.div>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <motion.div variants={itemVariants}>
-            <StatsCard>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Pass Percentage
-                    </Typography>
-                    <Typography variant="h4" sx={{ my: 1, fontWeight: 'bold' }}>
-                      {stats.passPercentage}%
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <TrendingUpIcon color="success" fontSize="small" />
-                      <Typography variant="body2" color="success.main" sx={{ ml: 0.5 }}>
-                        +3%
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
-                        vs last semester
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ 
-                    backgroundColor: 'rgba(33, 150, 243, 0.1)', 
-                    borderRadius: '50%', 
-                    p: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <BarChartIcon sx={{ color: '#2196f3' }} fontSize="large" />
-                  </Box>
-                </Box>
-              </CardContent>
-            </StatsCard>
-          </motion.div>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={4}>
-          <motion.div variants={itemVariants}>
-            <StatsCard>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Box>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Total Achievements
-                    </Typography>
-                    <Typography variant="h4" sx={{ my: 1, fontWeight: 'bold' }}>
-                      {stats.achievements}
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <TrendingUpIcon color="success" fontSize="small" />
-                      <Typography variant="body2" color="success.main" sx={{ ml: 0.5 }}>
-                        +12
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary" sx={{ ml: 0.5 }}>
-                        this semester
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ 
-                    backgroundColor: 'rgba(255, 152, 0, 0.1)', 
-                    borderRadius: '50%', 
-                    p: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <BusinessIcon sx={{ color: '#ff9800' }} fontSize="large" />
-                  </Box>
-                </Box>
-              </CardContent>
-            </StatsCard>
-          </motion.div>
+          <Card elevation={2}>
+            <CardContent>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                Courses
+              </Typography>
+              <Typography variant="h3" component="div" color="success.main">
+                {departmentStats.totalCourses}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Active this semester
+              </Typography>
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
-
-      {/* Main Content */}
-      <Grid container spacing={3}>
-        {/* Faculty Performance */}
-        <Grid item xs={12} md={7}>
-          <motion.div variants={itemVariants}>
-            <ChartContainer>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight="medium">
-                  Faculty Performance
-                </Typography>
-                <IconButton size="small">
-                  <MoreVertIcon />
-                </IconButton>
-              </Box>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Box sx={{ overflowX: 'auto' }}>
-                <Table sx={{ minWidth: 650 }}>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Faculty Name</TableCell>
-                      <TableCell align="center">Students</TableCell>
-                      <TableCell align="center">Avg. CGPA</TableCell>
-                      <TableCell align="center">Achievements</TableCell>
-                      <TableCell align="center">Status</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {facultyPerformance.map((faculty) => (
-                      <TableRow key={faculty.id}>
-                        <TableCell component="th" scope="row">
-                          {faculty.name}
-                        </TableCell>
-                        <TableCell align="center">{faculty.students}</TableCell>
-                        <TableCell align="center">{faculty.avgStudentCGPA}</TableCell>
-                        <TableCell align="center">{faculty.achievements}</TableCell>
-                        <TableCell align="center">
-                          <Chip 
-                            label={faculty.status} 
-                            color={
-                              faculty.status === 'Excellent' ? 'success' :
-                              faculty.status === 'Good' ? 'primary' :
-                              faculty.status === 'Average' ? 'warning' : 'default'
-                            }
-                            size="small"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </Box>
-              
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button color="primary">View All Faculty</Button>
-              </Box>
-            </ChartContainer>
-          </motion.div>
+      
+      {/* Performance Metrics */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={8}>
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Department Performance Trends
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Box sx={{ height: 300 }}>
+              <PerformanceChart data={performanceData} />
+            </Box>
+          </Paper>
         </Grid>
-
-        {/* Recent Activity */}
-        <Grid item xs={12} md={5}>
-          <motion.div variants={itemVariants}>
-            <ChartContainer>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight="medium">
-                  Recent Activity
-                </Typography>
-                <IconButton size="small">
-                  <MoreVertIcon />
-                </IconButton>
-              </Box>
-              <Divider sx={{ mb: 2 }} />
-              
-              <List sx={{ width: '100%', bgcolor: 'background.paper' }}>
-                {recentActivities.map((activity) => (
-                  <ListItem
-                    key={activity.id}
-                    alignItems="flex-start"
-                    sx={{ px: 0, py: 1 }}
-                  >
-                    <ListItemAvatar>
-                      <Avatar sx={{ 
-                        bgcolor: 
-                          activity.type === 'faculty' ? 'primary.light' : 
-                          activity.type === 'student' ? 'success.light' : 
-                          activity.type === 'report' ? 'info.light' : 
-                          'warning.light'
-                      }}>
-                        {activity.type === 'faculty' && <GroupIcon />}
-                        {activity.type === 'student' && <PeopleIcon />}
-                        {activity.type === 'report' && <AssessmentIcon />}
-                        {activity.type === 'course' && <SchoolIcon />}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <>
-                          {activity.name && (
-                            <Typography
-                              component="span"
-                              variant="body2"
-                              color="text.primary"
-                              sx={{ fontWeight: 'bold' }}
-                            >
-                              {activity.name}
-                            </Typography>
-                          )}
-                          {activity.name && " - "}
-                          {activity.action}
-                        </>
-                      }
-                      secondary={activity.time}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-              
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button color="primary">View All Activities</Button>
-              </Box>
-            </ChartContainer>
-          </motion.div>
+        
+        <Grid item xs={12} md={4}>
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Specialization Distribution
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+              <BranchDistributionChart data={branchData} />
+            </Box>
+          </Paper>
         </Grid>
-
-        {/* Quick Actions */}
-        <Grid item xs={12}>
-          <motion.div variants={itemVariants}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>Quick Actions</Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth 
-                    sx={{ 
-                      p: 2, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      gap: 1
-                    }}
-                  >
-                    <GroupIcon />
-                    <Typography>Manage Faculty</Typography>
-                  </Button>
-                </Grid>
-                
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth 
-                    sx={{ 
-                      p: 2, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      gap: 1
-                    }}
-                  >
-                    <AssessmentIcon />
-                    <Typography>Generate Report</Typography>
-                  </Button>
-                </Grid>
-                
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth 
-                    sx={{ 
-                      p: 2, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      gap: 1
-                    }}
-                  >
-                    <SchoolIcon />
-                    <Typography>Course Analytics</Typography>
-                  </Button>
-                </Grid>
-                
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth 
-                    sx={{ 
-                      p: 2, 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      gap: 1
-                    }}
-                  >
-                    <WarningIcon />
-                    <Typography>At-Risk Students</Typography>
-                  </Button>
-                </Grid>
-              </Grid>
-            </Paper>
-          </motion.div>
+      </Grid>
+      
+      {/* Key Metrics */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} md={6}>
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Key Performance Indicators
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <List>
+              <ListItem>
+                <ListItemIcon>
+                  <TrendingUpIcon color="success" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Average CGPA" 
+                  secondary={`${departmentStats.avgPerformance} / 10.0`} 
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <CheckCircleIcon color="success" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Pass Rate" 
+                  secondary={`${departmentStats.passRate}%`} 
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <EmojiEventsIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Student Achievements" 
+                  secondary={departmentStats.achievements} 
+                />
+              </ListItem>
+            </List>
+          </Paper>
+        </Grid>
+        
+        <Grid item xs={12} md={6}>
+          <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+            <Typography variant="h6" gutterBottom>
+              Department Highlights
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <List>
+              <ListItem>
+                <ListItemIcon>
+                  <SchoolIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Research Publications" 
+                  secondary="12 papers published in the last semester" 
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <PeopleIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Industry Collaborations" 
+                  secondary="5 new partnerships established" 
+                />
+              </ListItem>
+              <ListItem>
+                <ListItemIcon>
+                  <TrendingUpIcon color="success" />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Placement Rate" 
+                  secondary="94% of eligible students placed" 
+                />
+              </ListItem>
+            </List>
+          </Paper>
         </Grid>
       </Grid>
     </motion.div>

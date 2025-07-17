@@ -3,7 +3,7 @@ import {
     Table, TableHead, TableRow, TableCell,
     TableBody, Checkbox, Button
 } from '@mui/material';
-import { api } from '../services/api';
+import { api } from '../services/api_enhanced';
 import { tableColumns } from '../constants/columns';
 import ReportStyleDialog from '../components/ReportStyleDialog';
 
@@ -21,7 +21,18 @@ export default function StudentTable({ students, selected, handleSelect, handleP
         setCurrentRegNo(null);
     };
 
-    undefined
+    const handleGenerateReport = ({ regNo, includeCharts, templateStyle, action }) => {
+        if (action === 'download') {
+            const link = document.createElement('a');
+            link.href = api.downloadIndividualReport(regNo, includeCharts, templateStyle);
+            link.download = `${regNo}_report.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else if (action === 'preview') {
+            handlePreview(regNo, includeCharts, templateStyle);
+        }
+    };
 
     return (
         <>

@@ -12,10 +12,12 @@ import ReportSelector from '../components/reports/ReportSelector';
 import SemesterPerformanceReport from '../components/reports/SemesterPerformanceReport';
 import CumulativePerformanceReport from '../components/reports/CumulativePerformanceReport';
 import SubjectAnalysisReport from '../components/reports/SubjectAnalysisReport';
+import AchievementsReport from '../components/reports/AchievementsReport';
+import CertificationsReport from '../components/reports/CertificationsReport';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const AcademicReportsPage = () => {
   const [loading, setLoading] = useState(false);
@@ -46,6 +48,12 @@ const AcademicReportsPage = () => {
           break;
         case 'subject-analysis':
           url = `${API_BASE_URL}/reports/subject-analysis/${params.regNo}`;
+          break;
+        case 'achievements-report':
+          url = `${API_BASE_URL}/reports/achievements/${params.regNo}`;
+          break;
+        case 'certifications-report':
+          url = `${API_BASE_URL}/reports/certifications/${params.regNo}`;
           break;
         default:
           throw new Error('Invalid report type');
@@ -101,6 +109,10 @@ const AcademicReportsPage = () => {
         return <CumulativePerformanceReport data={reportData} />;
       case 'subject-analysis':
         return <SubjectAnalysisReport data={reportData} />;
+      case 'achievements-report':
+        return <AchievementsReport data={reportData} />;
+      case 'certifications-report':
+        return <CertificationsReport data={reportData} />;
       default:
         return null;
     }

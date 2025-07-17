@@ -32,28 +32,36 @@ const DashboardHeader = ({ open, handleDrawerToggle, userRole = '' }) => {
   // Get user from localStorage
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : { first_name: 'User', last_name: '' };
-
+  
   const handleProfileMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
-
+  
   const handleProfileMenuClose = () => {
     setAnchorEl(null);
   };
-
+  
   const handleNotificationMenuOpen = (event) => {
     setNotificationAnchorEl(event.currentTarget);
   };
-
+  
   const handleNotificationMenuClose = () => {
     setNotificationAnchorEl(null);
   };
-
+  
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
+    localStorage.clear();
     navigate('/login');
+  };
+
+  const getRoleName = (role) => {
+    switch(role) {
+      case 'faculty': return 'Faculty';
+      case 'hod': return 'Head of Department';
+      case 'principal': return 'Principal';
+      case 'admin': return 'Administrator';
+      default: return role.charAt(0).toUpperCase() + role.slice(1);
+    }
   };
 
   return (
@@ -62,9 +70,9 @@ const DashboardHeader = ({ open, handleDrawerToggle, userRole = '' }) => {
       sx={{
         width: { sm: `calc(100% - ${open ? drawerWidth : 0}px)` },
         ml: { sm: `${open ? drawerWidth : 0}px` },
-        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
-        backgroundColor: 'white',
-        color: 'text.primary',
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        background: 'linear-gradient(45deg, #4568dc 30%, #b06ab3 90%)',
+        boxShadow: '0 3px 5px 2px rgba(69, 104, 220, .3)',
         transition: (theme) => theme.transitions.create(['margin', 'width'], {
           easing: theme.transitions.easing.sharp,
           duration: theme.transitions.duration.leavingScreen,
@@ -77,13 +85,13 @@ const DashboardHeader = ({ open, handleDrawerToggle, userRole = '' }) => {
           aria-label="open drawer"
           edge="start"
           onClick={handleDrawerToggle}
-          sx={{ mr: 2, display: { sm: 'none' } }}
+          sx={{ mr: 2, display: { sm: open ? 'none' : 'block' } }}
         >
           <MenuIcon />
         </IconButton>
         
         <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          {userRole} Dashboard
+          {getRoleName(userRole)} Dashboard
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -105,12 +113,6 @@ const DashboardHeader = ({ open, handleDrawerToggle, userRole = '' }) => {
             </IconButton>
           </Tooltip>
           
-          <Tooltip title="Settings">
-            <IconButton color="inherit" sx={{ mr: 2 }}>
-              <SettingsIcon />
-            </IconButton>
-          </Tooltip>
-          
           <Tooltip title="Account">
             <IconButton
               onClick={handleProfileMenuOpen}
@@ -120,7 +122,7 @@ const DashboardHeader = ({ open, handleDrawerToggle, userRole = '' }) => {
               aria-haspopup="true"
               aria-expanded={Boolean(anchorEl) ? 'true' : undefined}
             >
-              <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: 'white', color: 'primary.main' }}>
                 {user.first_name ? user.first_name[0] : 'U'}
               </Avatar>
             </IconButton>
@@ -139,54 +141,50 @@ const DashboardHeader = ({ open, handleDrawerToggle, userRole = '' }) => {
           elevation: 0,
           sx: {
             overflow: 'visible',
-            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
+            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
             mt: 1.5,
-            width: 220,
             '& .MuiAvatar-root': {
               width: 32,
               height: 32,
               ml: -0.5,
               mr: 1,
             },
+            '&:before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              right: 14,
+              width: 10,
+              height: 10,
+              bgcolor: 'background.paper',
+              transform: 'translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+            },
           },
         }}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <Box sx={{ px: 2, py: 1 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-            {user.first_name} {user.last_name}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {user.email}
-          </Typography>
-        </Box>
-        
-        <Divider />
-        
-        <MenuItem onClick={() => navigate('/profile')}>
+        <MenuItem onClick={() => navigate(`/${userRole}/profile`)}>
           <ListItemIcon>
             <PersonIcon fontSize="small" />
           </ListItemIcon>
           Profile
         </MenuItem>
-        
-        <MenuItem onClick={() => navigate('/settings')}>
+        <MenuItem onClick={() => navigate(`/${userRole}/settings`)}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" />
           </ListItemIcon>
           Settings
         </MenuItem>
-        
         <MenuItem onClick={() => navigate('/help')}>
           <ListItemIcon>
             <HelpIcon fontSize="small" />
           </ListItemIcon>
           Help
         </MenuItem>
-        
         <Divider />
-        
         <MenuItem onClick={handleLogout}>
           <ListItemIcon>
             <LogoutIcon fontSize="small" color="error" />
@@ -206,54 +204,49 @@ const DashboardHeader = ({ open, handleDrawerToggle, userRole = '' }) => {
           elevation: 0,
           sx: {
             overflow: 'visible',
-            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
+            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
             mt: 1.5,
             width: 320,
+            '&:before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              right: 14,
+              width: 10,
+              height: 10,
+              bgcolor: 'background.paper',
+              transform: 'translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+            },
           },
         }}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
-        <Box sx={{ px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-            Notifications
-          </Typography>
-          <Typography variant="body2" color="primary" sx={{ cursor: 'pointer' }}>
-            Mark all as read
-          </Typography>
-        </Box>
-        
+        <MenuItem>
+          <Box sx={{ width: '100%' }}>
+            <Typography variant="subtitle2">New Report Generated</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Student performance report for 22A91A6101 is ready.
+            </Typography>
+          </Box>
+        </MenuItem>
         <Divider />
-        
         <MenuItem>
           <Box sx={{ width: '100%' }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              5 students have CGPA below 5.0
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-              2 hours ago
+            <Typography variant="subtitle2">Achievement Added</Typography>
+            <Typography variant="body2" color="text.secondary">
+              New achievement recorded for student 22A91A6102.
             </Typography>
           </Box>
         </MenuItem>
-        
+        <Divider />
         <MenuItem>
           <Box sx={{ width: '100%' }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              Semester reports generated successfully
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-              Yesterday
-            </Typography>
-          </Box>
-        </MenuItem>
-        
-        <MenuItem>
-          <Box sx={{ width: '100%' }}>
-            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              New academic calendar published
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-              2 days ago
+            <Typography variant="subtitle2">System Update</Typography>
+            <Typography variant="body2" color="text.secondary">
+              The system will undergo maintenance tonight at 11 PM.
             </Typography>
           </Box>
         </MenuItem>

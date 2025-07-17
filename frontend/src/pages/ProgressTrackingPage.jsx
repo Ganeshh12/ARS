@@ -19,7 +19,7 @@ import InternshipTrackingReport from '../components/reports/InternshipTrackingRe
 import { motion } from 'framer-motion';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const ProgressTrackingPage = () => {
   const [loading, setLoading] = useState(false);

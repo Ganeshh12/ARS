@@ -14,6 +14,7 @@ import {
   useTheme,
   useMediaQuery
 } from '@mui/material';
+import { useStudentFilter } from '../../contexts/StudentFilterContext';
 
 // Icons
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -33,7 +34,8 @@ const FacultySidebar = ({ open, onToggle }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const location = useLocation();
   const navigate = useNavigate();
-
+  const { toggleStudentFilter } = useStudentFilter();
+  
   // Get user from localStorage
   const userString = localStorage.getItem('user');
   const user = userString ? JSON.parse(userString) : { first_name: 'Faculty', last_name: 'User' };
@@ -42,6 +44,7 @@ const FacultySidebar = ({ open, onToggle }) => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    localStorage.clear();
     navigate('/login');
   };
 
@@ -55,94 +58,83 @@ const FacultySidebar = ({ open, onToggle }) => {
     { text: 'Calendar', path: '/faculty/calendar', icon: <CalendarMonthIcon /> },
   ];
 
-  const drawerContent = (
+  const handleMenuItemClick = (path, text) => {
+    // If clicking on Students menu, set filter to 'proctoring'
+    if (text === 'Students') {
+      toggleStudentFilter('proctoring');
+    }
+    navigate(path);
+    if (isMobile) {
+      onToggle();
+    }
+  };
+
+  const drawer = (
     <>
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          py: 3,
-          backgroundColor: 'primary.main',
-          color: 'white',
-        }}
-      >
-        <Avatar
-          sx={{
-            width: 80,
-            height: 80,
-            mb: 2,
-            bgcolor: 'white',
-            color: 'primary.main',
-            fontSize: '2rem',
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Avatar 
+          sx={{ 
+            bgcolor: theme.palette.primary.main,
+            width: 40,
+            height: 40
           }}
         >
-          {user.first_name ? user.first_name[0] : 'F'}
+          {user.first_name ? user.first_name.charAt(0) : 'F'}
         </Avatar>
-        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-          {user.first_name} {user.last_name}
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.8 }}>
-          Faculty
-        </Typography>
+        <Box>
+          <Typography variant="subtitle1" noWrap>
+            {user.first_name} {user.last_name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" noWrap>
+            Faculty
+          </Typography>
+        </Box>
       </Box>
-
+      
       <Divider />
-
-      <List sx={{ pt: 2 }}>
+      
+      <List>
         {menuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              onClick={() => navigate(item.path)}
+            <ListItemButton 
+              onClick={() => handleMenuItemClick(item.path, item.text)}
+              selected={location.pathname === item.path}
               sx={{
-                py: 1.5,
-                px: 3,
-                backgroundColor: location.pathname === item.path ? 'rgba(69, 104, 220, 0.08)' : 'transparent',
+                '&.Mui-selected': {
+                  backgroundColor: 'rgba(69, 104, 220, 0.1)',
+                  borderRight: `3px solid ${theme.palette.primary.main}`,
+                  '&:hover': {
+                    backgroundColor: 'rgba(69, 104, 220, 0.2)',
+                  }
+                },
                 '&:hover': {
                   backgroundColor: 'rgba(69, 104, 220, 0.05)',
-                },
+                }
               }}
             >
-              <ListItemIcon
-                sx={{
-                  color: location.pathname === item.path ? '#4568dc' : 'inherit',
+              <ListItemIcon 
+                sx={{ 
+                  color: location.pathname === item.path ? theme.palette.primary.main : 'inherit',
+                  minWidth: 40
                 }}
               >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText 
-                primary={
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: location.pathname === item.path ? 600 : 400,
-                      color: location.pathname === item.path ? '#4568dc' : 'inherit',
-                    }}
-                  >
-                    {item.text}
-                  </Typography>
-                }
-              />
+              <ListItemText primary={item.text} />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
-
+      
       <Divider sx={{ mt: 'auto' }} />
-
+      
       <List>
         <ListItem disablePadding>
-          <ListItemButton onClick={handleLogout} sx={{ py: 1.5, px: 3 }}>
-            <ListItemIcon>
-              <LogoutIcon color="error" />
+          <ListItemButton onClick={handleLogout}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <LogoutIcon />
             </ListItemIcon>
-            <ListItemText 
-              primary={
-                <Typography variant="body2" color="error">
-                  Logout
-                </Typography>
-              }
-            />
+            <ListItemText primary="Logout" />
           </ListItemButton>
         </ListItem>
       </List>
@@ -150,48 +142,22 @@ const FacultySidebar = ({ open, onToggle }) => {
   );
 
   return (
-    <Box
-      component="nav"
-      sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+    <Drawer
+      variant={isMobile ? 'temporary' : 'persistent'}
+      open={open}
+      onClose={onToggle}
+      sx={{
+        width: open ? drawerWidth : 0,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: drawerWidth,
+          boxSizing: 'border-box',
+          borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+        },
+      }}
     >
-      {/* Mobile drawer */}
-      <Drawer
-        variant="temporary"
-        open={isMobile && open}
-        onClose={onToggle}
-        ModalProps={{
-          keepMounted: true, // Better open performance on mobile
-        }}
-        sx={{
-          display: { xs: 'block', sm: 'none' },
-          '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
-
-      {/* Desktop drawer */}
-      <Drawer
-        variant="permanent"
-        open={open}
-        sx={{
-          display: { xs: 'none', sm: 'block' },
-          '& .MuiDrawer-paper': {
-            boxSizing: 'border-box',
-            width: drawerWidth,
-            borderRight: '1px solid rgba(0, 0, 0, 0.08)',
-            boxShadow: open ? '4px 0 8px rgba(0, 0, 0, 0.05)' : 'none',
-            transform: open ? 'translateX(0)' : 'translateX(-100%)',
-            transition: theme.transitions.create('transform', {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
-            }),
-          },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
-    </Box>
+      {drawer}
+    </Drawer>
   );
 };
 

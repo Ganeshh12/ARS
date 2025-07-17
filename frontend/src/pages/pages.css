@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Edu+NSW+ACT+Hand+Pre:wght@400..700&family=Oswald:wght@200..700&display=swap');
+
+.aditya-logo{
+    width:60%;
+    height:40%;
+    margin-bottom: 16px;
+    margin-right:10px;
+}
+
+.login-header{
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.login-title{
+    font-size: 20px;
+    font-family: Oswald;
+}
+
+@media screen and (max-width:767px){
+    .aditya-logo{
+    width:40%;
+    height:32%;
+    margin-bottom: 16px;
+    }
+}

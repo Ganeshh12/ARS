@@ -38,6 +38,16 @@ const RecentReportsTable = ({ reports = [] }) => {
     );
   }
 
+  // Process reports to ensure they have all required fields
+  const processedReports = reports.map(report => ({
+    id: report.id || Math.random().toString(36).substr(2, 9),
+    type: report.report_type === 'Semester Performance' ? 'PDF' : 
+          report.report_type === 'Achievements' ? 'Excel' : 'PDF',
+    name: report.student_name || 'Unknown Student',
+    date: report.date || new Date().toISOString().split('T')[0],
+    user: report.generated_by || 'Faculty'
+  }));
+
   const getTypeIcon = (type) => {
     switch (type.toLowerCase()) {
       case 'pdf':
@@ -93,7 +103,7 @@ const RecentReportsTable = ({ reports = [] }) => {
           initial="hidden"
           animate="show"
         >
-          {reports.map((report) => (
+          {processedReports.map((report) => (
             <motion.tr
               key={report.id}
               variants={rowVariants}

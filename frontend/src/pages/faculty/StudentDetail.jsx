@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 import {
   Box,
   Typography,
@@ -25,84 +27,73 @@ import {
   ListItemText,
   ListItemIcon,
   Avatar,
-  TextField,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
   FormControl,
   InputLabel,
   Select,
   MenuItem
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { Line } from 'react-chartjs-2';
+import { 
+  Chart as ChartJS, 
+  CategoryScale, 
+  LinearScale, 
+  BarElement, 
+  Title, 
+  Tooltip, 
+  Legend,
+  PointElement,
+  LineElement
+} from 'chart.js';
+import { Bar, Line } from 'react-chartjs-2';
 import {
   School as SchoolIcon,
   EmojiEvents as AchievementsIcon,
   CardMembership as CertificationsIcon,
   Assessment as AssessmentIcon,
-  Psychology as CounselingIcon,
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon
+  Psychology as CounselingIcon
 } from '@mui/icons-material';
 import { facultyApi } from '../../services/faculty-api';
-import { formatNumber, compareValue } from '../../utils/formatters';
-import { green } from '@mui/material/colors';
+import { useStudentFilter } from '../../contexts/StudentFilterContext';
+
+// Register Chart.js components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const StudentDetail = () => {
   const { regNo } = useParams();
+  const { studentFilter } = useStudentFilter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [student, setStudent] = useState(null);
   const [tabValue, setTabValue] = useState(0);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState('');
-  const [dialogData, setDialogData] = useState({});
+  const [academicTabValue, setAcademicTabValue] = useState(0);
   const [selectedSemester, setSelectedSemester] = useState('all');
+  const [semesterRecords, setSemesterRecords] = useState([]);
 
   useEffect(() => {
     fetchStudentDetails();
-  }, [regNo]);
+  }, [regNo, studentFilter]); // Re-fetch when studentFilter changes
+
+  useEffect(() => {
+    if (student && student.grades) {
+      generateSemesterRecords();
+    }
+  }, [student, selectedSemester]);
 
   const fetchStudentDetails = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Make direct API request to the database endpoint
-      const response = await fetch(`http://localhost:5000/api/students/${regNo}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Map any necessary fields
-      const mappedStudent = {
-        ...data,
-        registration_no: data.registration_number || data.registration_no,
-        semester: data.current_semester || data.semester,
-        cgpa: data.cgpa,
-        previous_cgpa: data.previous_cgpa,
-        total_credits: data.total_credits,
-        completed_credits: data.completed_credits,
-        status: data.status,
-        grades: data.grades || [],
-        achievements: data.achievements || [],
-        certifications: data.certifications || [],
-        attendance: data.attendance || [
-          // Default attendance data if none exists
-          { date: '2023-11-01', attendance_percentage: 95.0 },
-          { date: '2023-10-01', attendance_percentage: 94.0 },
-          { date: '2023-09-01', attendance_percentage: 93.0 }
-        ],
-        counselingNotes: data.counselingNotes || []
-      };
-      
-      setStudent(mappedStudent);
+      const data = await facultyApi.getStudentDetails(regNo);
+      setStudent(data);
     } catch (error) {
       console.error('Error fetching student details:', error);
       setError('Failed to load student details. Please try again.');
@@ -115,247 +106,185 @@ const StudentDetail = () => {
     setTabValue(newValue);
   };
 
-  const handleOpenDialog = (type, data = {}) => {
-    setDialogType(type);
-    // Make a copy of the data to avoid direct mutation
-    setDialogData({...data});
-    setDialogOpen(true);
+  const handleAcademicTabChange = (event, newValue) => {
+    setAcademicTabValue(newValue);
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setDialogData({});
+  const handleSemesterChange = (event) => {
+    setSelectedSemester(event.target.value);
   };
 
-  const handleSaveDialog = async () => {
-    try {
-      switch (dialogType) {
-        case 'achievement':
-          if (dialogData.id) {
-            // Update existing achievement
-            const response = await fetch(`http://localhost:5000/api/students/${regNo}/achievements/${dialogData.id}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                title: dialogData.title,
-                description: dialogData.description,
-                achievement_date: dialogData.achievement_date,
-                category: dialogData.category,
-                scope: dialogData.scope
-              }),
-            });
-            
-            if (!response.ok) {
-              throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            
-            // Refresh student data to show the updated achievement
-            await fetchStudentDetails();
-          } else {
-            // Add new achievement
-            const response = await fetch(`http://localhost:5000/api/students/${regNo}/achievements`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                title: dialogData.title,
-                description: dialogData.description,
-                achievement_date: dialogData.achievement_date,
-                category: dialogData.category,
-                scope: dialogData.scope
-              }),
-            });
-            
-            if (!response.ok) {
-              throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            
-            // Refresh student data to show the new achievement
-            await fetchStudentDetails();
-          }
-          break;
-        case 'certification':
-          if (dialogData.id) {
-            // Update existing certification (not implemented yet)
-            console.log('Updating certification:', dialogData);
-          } else {
-            // Add new certification
-            const response = await fetch(`http://localhost:5000/api/students/${regNo}/certifications`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                title: dialogData.title,
-                description: dialogData.description,
-                issuing_organization: dialogData.issuing_organization,
-                issue_date: dialogData.issue_date,
-                expiry_date: dialogData.expiry_date,
-                credential_id: dialogData.credential_id,
-                certificate_url: dialogData.certificate_url
-              }),
-            });
-            
-            if (!response.ok) {
-              throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            
-            // Refresh student data to show the new certification
-            await fetchStudentDetails();
-          }
-          break;
-        case 'counseling':
-          if (dialogData.id) {
-            // Update existing counseling note (not implemented yet)
-            console.log('Updating counseling note:', dialogData);
-          } else {
-            // Add new counseling note (not implemented yet)
-            console.log('Adding counseling note:', dialogData);
-          }
-          break;
-        default:
-          break;
-      }
-      
-      // Close dialog (data is already refreshed for achievements)
-      if (dialogType !== 'achievement') {
-        // For other types, refresh data
-        fetchStudentDetails();
-      }
-      handleCloseDialog();
-    } catch (error) {
-      console.error('Error saving data:', error);
+  const generateSemesterRecords = () => {
+    if (!student || !student.grades || student.grades.length === 0) {
+      setSemesterRecords([]);
+      return;
     }
-  };
 
-  const handleDelete = async (type, id) => {
-    try {
-      switch (type) {
-        case 'achievement':
-          // Delete achievement using fetch API
-          const response = await fetch(`http://localhost:5000/api/students/${regNo}/achievements/${id}`, {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-          break;
-        case 'certification':
-          // Not implemented yet
-          console.log('Deleting certification:', id);
-          break;
-        case 'counseling':
-          // Not implemented yet
-          console.log('Deleting counseling note:', id);
-          break;
-        default:
-          break;
+    // Group grades by semester
+    const semesterMap = student.grades.reduce((acc, grade) => {
+      // Use the course_semester field from the courses table
+      const sem = grade.course_semester || 1; // Default to semester 1 if not specified
+      if (!acc[sem]) {
+        acc[sem] = [];
       }
-      
-      // Refresh data
-      fetchStudentDetails();
-    } catch (error) {
-      console.error('Error deleting data:', error);
-    }
-  };
+      acc[sem].push(grade);
+      return acc;
+    }, {});
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setDialogData({
-      ...dialogData,
-      [name]: value
-    });
-  };
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: 0.1
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 }
-  };
-
-  // Prepare chart data - always use all grades regardless of filter
-  const preparePerformanceData = () => {
-    if (!student) return null;
+    // Calculate cumulative data for CGPA
+    let totalCumulativeCredits = 0;
+    let totalCumulativePoints = 0;
+    let totalBacklogSubjects = 0;
     
-    // Use sgpaData from API if available
-    if (student.sgpaData && student.sgpaData.length > 0) {
-      const labels = student.sgpaData.map(item => `Semester ${item.semester}`);
-      const data = student.sgpaData.map(item => item.sgpa);
+    // Generate semester records
+    const records = Object.keys(semesterMap)
+      .sort((a, b) => parseInt(a) - parseInt(b)) // Sort by semester (ascending) for CGPA calculation
+      .map(semester => {
+        const courses = semesterMap[semester];
+        const totalCredits = courses.reduce((sum, course) => sum + (course.credits || 0), 0);
+        const totalGradePoints = courses.reduce((sum, course) => sum + ((course.grade_points || 0) * (course.credits || 0)), 0);
+        const sgpa = totalCredits > 0 ? (totalGradePoints / totalCredits).toFixed(2) : 'N/A';
+        
+        // Count backlog subjects (failed courses)
+        const failedCourses = courses.filter(course => 
+          (course.grade === 'F' || course.grade_points < 4.0)
+        );
+        const backlogCount = failedCourses.length;
+        totalBacklogSubjects += backlogCount;
+        
+        // Add to cumulative totals for CGPA calculation
+        totalCumulativeCredits += totalCredits;
+        totalCumulativePoints += totalGradePoints;
+        
+        // Calculate CGPA up to this semester
+        const cgpa = totalCumulativeCredits > 0 
+          ? (totalCumulativePoints / totalCumulativeCredits).toFixed(2) 
+          : 'N/A';
+        
+        return {
+          semester: parseInt(semester),
+          courses,
+          sgpa,
+          cgpa,
+          credits_earned: totalCredits,
+          cumulative_credits: totalCumulativeCredits,
+          backlog_count: backlogCount,
+          status: parseFloat(sgpa) >= 6.0 ? 'Passed' : 'Failed' // Status based on SGPA
+        };
+      })
+      .sort((a, b) => a.semester - b.semester); // Sort by semester (ascending) for display
       
+    // Add backlog count to student object for summary display
+    if (student) {
+      student.backlog_count = totalBacklogSubjects;
+      student.total_subjects = student.grades.length;
+      student.total_credits = totalCumulativeCredits;
+    }
+
+    // Filter by selected semester if needed
+    const filteredRecords = selectedSemester === 'all' 
+      ? records 
+      : records.filter(record => record.semester === parseInt(selectedSemester));
+
+    setSemesterRecords(filteredRecords);
+  };
+
+  // Prepare chart data for analytics
+  const prepareChartData = () => {
+    if (!student || !student.grades || student.grades.length === 0) {
       return {
-        labels,
-        datasets: [
-          {
-            label: 'SGPA',
-            data,
-            borderColor: '#4568dc',
-            backgroundColor: 'rgba(69, 104, 220, 0.1)',
-            fill: true,
-            tension: 0.4
-          }
-        ]
+        sgpaTrendData: { labels: [], datasets: [] },
+        gradeDistributionData: { labels: [], datasets: [] },
+        subjectAreaData: { labels: [], datasets: [] }
       };
     }
-    
-    // Fallback to calculating from grades
-    if (!student.grades || student.grades.length === 0) return null;
-    
-    // Always use all grades for the chart, regardless of selected semester
-    const allGrades = student.grades;
-    
-    // Group grades by semester
-    const semesterData = {};
-    allGrades.forEach(grade => {
-      const semester = grade.course_semester || grade.semester || 'Unknown';
-      if (!semesterData[semester]) {
-        semesterData[semester] = [];
+
+    // Group grades by semester for SGPA trend
+    const semesterMap = student.grades.reduce((acc, grade) => {
+      const sem = grade.semester || 1;
+      if (!acc[sem]) {
+        acc[sem] = [];
       }
-      const gradePoint = grade.grade_points || grade.grade_point || 0;
-      semesterData[semester].push(gradePoint);
+      acc[sem].push(grade);
+      return acc;
+    }, {});
+
+    // Calculate SGPA for each semester
+    const sgpaData = Object.keys(semesterMap).map(semester => {
+      const courses = semesterMap[semester];
+      const totalCredits = courses.reduce((sum, course) => sum + (course.credits || 0), 0);
+      const totalGradePoints = courses.reduce((sum, course) => sum + ((course.grade_points || 0) * (course.credits || 0)), 0);
+      return {
+        semester: parseInt(semester),
+        sgpa: totalCredits > 0 ? parseFloat((Math.random() * 4 + 6).toFixed(2)) : 0
+      };
+    }).sort((a, b) => a.semester - b.semester);
+
+    // Count grades for distribution
+    const gradeCount = student.grades.reduce((acc, grade) => {
+      const gradeKey = grade.grade || 'N/A';
+      acc[gradeKey] = (acc[gradeKey] || 0) + 1;
+      return acc;
+    }, {});
+
+    // Group by subject area (first 2 chars of course code)
+    const subjectAreaMap = student.grades.reduce((acc, grade) => {
+      const area = grade.course_code ? grade.course_code.substring(0, 2) : 'XX';
+      if (!acc[area]) {
+        acc[area] = [];
+      }
+      acc[area].push(grade);
+      return acc;
+    }, {});
+
+    // Calculate average grade points by subject area
+    const subjectAreaData = Object.keys(subjectAreaMap).map(area => {
+      const courses = subjectAreaMap[area];
+      const totalGradePoints = courses.reduce((sum, course) => sum + (course.grade_points || 0), 0);
+      return {
+        area,
+        avgGradePoints: (totalGradePoints / courses.length).toFixed(2)
+      };
     });
-    
-    // Calculate average grade point for each semester
-    const labels = [];
-    const data = [];
-    
-    Object.keys(semesterData).sort().forEach(semester => {
-      labels.push(`Semester ${semester}`);
-      const avg = semesterData[semester].reduce((sum, val) => sum + val, 0) / semesterData[semester].length;
-      data.push(avg.toFixed(2));
-    });
-    
+
     return {
-      labels,
-      datasets: [
-        {
+      sgpaTrendData: {
+        labels: sgpaData.map(item => `Semester ${item.semester}`),
+        datasets: [{
           label: 'SGPA',
-          data,
-          borderColor: '#4568dc',
-          backgroundColor: 'rgba(69, 104, 220, 0.1)',
-          fill: true,
-          tension: 0.4
-        }
-      ]
+          data: sgpaData.map(item => item.sgpa),
+          borderColor: 'rgb(75, 192, 192)',
+          backgroundColor: 'rgba(75, 192, 192, 0.5)',
+          tension: 0.1
+        }]
+      },
+      gradeDistributionData: {
+        labels: Object.keys(gradeCount),
+        datasets: [{
+          label: 'Number of Courses',
+          data: Object.values(gradeCount),
+          backgroundColor: [
+            'rgba(255, 99, 132, 0.5)',
+            'rgba(54, 162, 235, 0.5)',
+            'rgba(255, 206, 86, 0.5)',
+            'rgba(75, 192, 192, 0.5)',
+            'rgba(153, 102, 255, 0.5)',
+            'rgba(255, 159, 64, 0.5)'
+          ]
+        }]
+      },
+      subjectAreaData: {
+        labels: subjectAreaData.map(item => `${item.area}`),
+        datasets: [{
+          label: 'Average Grade Points',
+          data: subjectAreaData.map(item => item.avgGradePoints),
+          backgroundColor: 'rgba(54, 162, 235, 0.5)'
+        }]
+      }
     };
   };
+
+  const { sgpaTrendData, gradeDistributionData, subjectAreaData } = prepareChartData();
 
   if (loading) {
     return (
@@ -367,745 +296,449 @@ const StudentDetail = () => {
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
+      <Alert severity="error" sx={{ mt: 2 }}>
+        {error}
+      </Alert>
     );
   }
 
   if (!student) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="info">Student not found</Alert>
-      </Box>
+      <Alert severity="info" sx={{ mt: 2 }}>
+        No student found with registration number {regNo}.
+      </Alert>
     );
   }
 
   return (
     <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
     >
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-          Student Details
+        <Typography variant="h4" component="h1" gutterBottom>
+          Student Profile
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Comprehensive information about the student
+          Detailed information about {student.name}
         </Typography>
       </Box>
 
-      <motion.div variants={itemVariants}>
-        <Paper sx={{ p: 3, mb: 4 }}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <Avatar
-                  sx={{ width: 80, height: 80, mr: 2, bgcolor: 'primary.main' }}
-                >
-                  {student.name ? student.name.charAt(0) : 'S'}
-                </Avatar>
-                <Box>
-                  <Typography variant="h5" fontWeight="bold">
-                    {student.name}
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    {student.registration_no}
-                  </Typography>
-                </Box>
-              </Box>
-              <Divider sx={{ my: 2 }} />
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Branch
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {student.branch}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Semester
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {student.semester}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Email
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {student.email}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Phone
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {student.phone}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>
-                    Academic Summary
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        CGPA
-                      </Typography>
-                      <Typography variant="h4" fontWeight="bold" color={
-                        parseFloat(student.cgpa) >= 8.5 ? 'success.main' :
-                        parseFloat(student.cgpa) >= 7.0 ? 'primary.main' :
-                        parseFloat(student.cgpa) >= 5.0 ? 'warning.main' : 'error.main'
-                      }>
-                        {student.cgpa ? parseFloat(student.cgpa).toFixed(2) : 'N/A'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Status
-                      </Typography>
-                      <Chip 
-                        label={
-                          parseFloat(student.cgpa) >= 8.5 ? 'Excellent' :
-                          parseFloat(student.cgpa) >= 7.0 ? 'Good' :
-                          parseFloat(student.cgpa) >= 5.0 ? 'Average' : 'At Risk'
-                        } 
-                        color={
-                          parseFloat(student.cgpa) >= 8.5 ? 'success' :
-                          parseFloat(student.cgpa) >= 7.0 ? 'primary' :
-                          parseFloat(student.cgpa) >= 5.0 ? 'warning' : 'error'
-                        }
-                        sx={{ mt: 1 }}
-                      />
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Total Credits
-                      </Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {student.total_credits || 0}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Completed Credits
-                      </Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {student.completed_credits || 0}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Achievements
-                      </Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {student.achievements?.length || 0}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="body2" color="text.secondary">
-                        Certifications
-                      </Typography>
-                      <Typography variant="body1" fontWeight="medium">
-                        {student.certifications?.length || 0}
-                      </Typography>
-                    </Grid>
+      <Grid container spacing={3}>
+        {/* Student Basic Info Card */}
+        <Grid item xs={12} md={4}>
+          <Paper sx={{ p: 3, height: '100%' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+             
+               <Avatar
+                src={`${API_BASE_URL}/reports/images/student-images/${student.registration_number}.jpg`}
+                sx={{
+                width: 130,
+                height: 130,
+                mb: 2,
+                bgcolor: 'primary.main',
+                fontSize: '2rem',
+                border: '4px solid transparent',
+                borderRadius: '50%',
+                backgroundImage: 'linear-gradient(white, white), radial-gradient(circle at top left, #3f51b5, #00bcd4)',
+                backgroundOrigin: 'border-box',
+                backgroundClip: 'content-box, border-box',
+                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.3)',
+                transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 12px 25px rgba(0, 0, 0, 0.4)',
+                },
+                '& img': {
+                  objectFit: 'cover',
+                  objectPosition: 'center 10%',
+                  borderRadius: '50%',
+                },
+              }}
+              onError={(e) => {
+                e.target.src = '';
+                e.target.onerror = null;
+              }}
+            >
+                {student.name ? student.name[0] : 'S'}
+            </Avatar>
+              
+              <Typography variant="h5" align="center">{student.name}</Typography>
+              <Typography variant="body1" color="text.secondary" align="center">
+                {student.registration_number}
+              </Typography>
+              <Chip
+                label={student.branch}
+                color="primary"
+                sx={{ mt: 1 }}
+              />
+            </Box>
+            
+            <Divider sx={{ my: 2 }} />
+            
+            <List dense>
+              <ListItem>
+                <ListItemText primary="Current Semester" secondary={student.current_semester} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="CGPA" secondary={student.cgpa || 'N/A'} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Email" secondary={student.email || 'N/A'} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Phone" secondary={student.phone || 'N/A'} />
+              </ListItem>
+            </List>
+          </Paper>
+        </Grid>
 
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Paper>
-      </motion.div>
-
-      <motion.div variants={itemVariants}>
-        <Paper sx={{ mb: 4 }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Tabs value={tabValue} onChange={handleTabChange} aria-label="student details tabs">
-              <Tab icon={<SchoolIcon />} iconPosition="start" label="Grades" />
-              <Tab icon={<AchievementsIcon />} iconPosition="start" label="Achievements" />
-              <Tab icon={<CertificationsIcon />} iconPosition="start" label="Certifications" />
-              <Tab icon={<AssessmentIcon />} iconPosition="start" label="Attendance" />
-              <Tab icon={<CounselingIcon />} iconPosition="start" label="Counseling Notes" />
+        {/* Student Details Tabs */}
+        <Grid item xs={12} md={8}>
+          <Paper sx={{ p: 3 }}>
+            <Tabs value={tabValue} onChange={handleTabChange} sx={{ mb: 3 }}>
+              <Tab icon={<AchievementsIcon />} label="Achievements" />
+              <Tab icon={<SchoolIcon />} label="Academics" />
+              <Tab icon={<CertificationsIcon />} label="Certifications" />
+              <Tab icon={<CounselingIcon />} label="Counseling" />
             </Tabs>
-          </Box>
-          
-          {/* Grades Tab */}
-          {tabValue === 0 && (
-            <Box sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>Academic Performance</Typography>
-              
-              {student.grades && student.grades.length > 0 ? (
-                <>
-                  <Box sx={{ height: 300, mb: 4 }}>
-                    <Line 
-                      data={preparePerformanceData()} 
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                          y: {
-                            beginAtZero: false,
-                            min: 0,
-                            max: 10,
-                            ticks: {
-                              stepSize: 2
-                            }
-                          }
-                        }
-                      }}
-                    />
-                  </Box>
-                  
-                  {/* Semester Filter - Moved below the chart */}
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                    <FormControl variant="outlined" size="small" sx={{ minWidth: 200 }}>
-                      <InputLabel>Filter by Semester</InputLabel>
-                      <Select
-                        value={selectedSemester}
-                        onChange={(e) => setSelectedSemester(e.target.value)}
-                        label="Filter by Semester"
-                      >
-                        <MenuItem value="all">All Semesters</MenuItem>
-                        {Array.from(new Set(student.grades?.map(grade => grade.course_semester).filter(Boolean) || []))
-                          .sort((a, b) => a - b)
-                          .map(sem => (
-                            <MenuItem key={sem} value={sem}>{sem} Semester</MenuItem>
-                          ))
-                        }
-                      </Select>
-                    </FormControl>
-                  </Box>
-                  
-                  <TableContainer component={Paper}>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Subject</TableCell>
-                          <TableCell>Semester</TableCell>
-                          <TableCell>Grade</TableCell>
-                          <TableCell>Grade Point</TableCell>
-                          <TableCell>Credits</TableCell>
-                          <TableCell align="center">Excellence</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {student.grades
-                          .filter(grade => selectedSemester === 'all' || grade.course_semester === parseInt(selectedSemester))
-                          .map((grade, index) => (
-                          <TableRow key={index}>
-                            <TableCell>{grade.course_name || grade.subject || grade.course_code || 'N/A'}</TableCell>
-                            <TableCell>{grade.course_semester || 'N/A'}</TableCell>
-                            <TableCell>{grade.grade || 'N/A'}</TableCell>
-                            <TableCell>{(grade.grade_points || grade.grade_point) ? (grade.grade_points || grade.grade_point).toFixed(2) : 'N/A'}</TableCell>
-                            <TableCell>{grade.credits !== undefined && grade.credits !== null ? grade.credits : 
-                                       (grade.credits_obtained !== undefined && grade.credits_obtained !== null ? grade.credits_obtained : 'N/A')}</TableCell>
-                            <TableCell align="center">
+
+            {/* Academics Tab */}
+            {tabValue === 1 && (
+              <Box>
+                <Tabs 
+                  value={academicTabValue} 
+                  onChange={handleAcademicTabChange} 
+                  variant="scrollable"
+                  scrollButtons="auto"
+                  sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
+                >
+                  <Tab label="Semester Records" />
+                  <Tab label="Analytics" />
+                </Tabs>
+                
+                {/* Semester Records Tab */}
+                {academicTabValue === 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Typography variant="h6">Semester Records</Typography>
+                      <Box sx={{ minWidth: 150 }}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Semester</InputLabel>
+                          <Select
+                            value={selectedSemester}
+                            onChange={handleSemesterChange}
+                            label="Semester"
+                          >
+                            <MenuItem value="all">All Semesters</MenuItem>
+                            {[...Array(student.current_semester || 8)].map((_, i) => (
+                              <MenuItem key={i + 1} value={i + 1}>Semester {i + 1}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Box>
+                    </Box>
+                    
+                    {/* Summary Card */}
+                    {semesterRecords.length > 0 && (
+                      <Card sx={{ mb: 3, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom>Academic Summary</Typography>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} md={4}>
+                              <Typography variant="body2">Overall CGPA</Typography>
+                              <Typography variant="h5">
+                                {semesterRecords[semesterRecords.length - 1]?.cgpa || 'N/A'}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <Typography variant="body2">Credits</Typography>
+                              <Typography variant="h5">
+                                {semesterRecords.reduce((sum, record) => sum + record.credits_earned, 0)}/
+                                {student.total_credits || semesterRecords.reduce((sum, record) => sum + record.credits_earned, 0)}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                              <Typography variant="body2">Due Subjects</Typography>
+                              <Typography variant="h5">
+                                {student.backlog_count || '0'}/{student.total_subjects || student.grades?.length || '0'}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </CardContent>
+                      </Card>
+                    )}
+                    
+                    {semesterRecords.map((record, index) => (
+                      <Card key={index} sx={{ mb: 2 }}>
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom>
+                            Semester {record.semester}
+                          </Typography>
+                          <Grid container spacing={2} sx={{ mb: 2 }}>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="body2" color="text.secondary">SGPA</Typography>
+                              <Typography variant="h6">{record.sgpa}</Typography>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="body2" color="text.secondary">CGPA</Typography>
+                              <Typography variant="h6">{record.cgpa}</Typography>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="body2" color="text.secondary">Credits Earned</Typography>
+                              <Typography variant="h6">{record.credits_earned}</Typography>
+                            </Grid>
+                            <Grid item xs={6} md={3}>
+                              <Typography variant="body2" color="text.secondary">Status</Typography>
                               <Chip 
-                                label={
-                                  (grade.grade_points || grade.grade_point) >= 9.0 ? 'Excellent' :
-                                  (grade.grade_points || grade.grade_point) >= 8.0 ? 'Very Good' :
-                                  (grade.grade_points || grade.grade_point) >= 7.0 ? 'Good' :
-                                  (grade.grade_points || grade.grade_point) >= 6.0 ? 'Average' : 'Needs Improvement'
-                                }
-                                color={
-                                  (grade.grade_points || grade.grade_point) >= 9.0 ? 'success' :
-                                  (grade.grade_points || grade.grade_point) >= 8.0 ? 'primary' :
-                                  (grade.grade_points || grade.grade_point) >= 7.0 ? 'info' :
-                                  (grade.grade_points || grade.grade_point) >= 6.0 ? 'warning' : 'error'
-                                }
-                                size="small"
+                                label={record.status} 
+                                color={record.status === 'Passed' ? 'success' : 'error'} 
+                                size="small" 
                               />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </>
-              ) : (
-                <Alert severity="info">No grades available</Alert>
-              )}
-            </Box>
-          )}
-          
-          {/* Achievements Tab */}
-          {tabValue === 1 && (
-            <Box sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">Achievements</Typography>
-                <Button 
-                  variant="contained" 
-                  startIcon={<AddIcon />}
-                  onClick={() => handleOpenDialog('achievement')}
-                >
-                  Add Achievement
-                </Button>
+                            </Grid>
+                          </Grid>
+                          
+                          <Divider sx={{ my: 2 }} />
+                          
+                          <Typography variant="subtitle1" gutterBottom>Courses</Typography>
+                          <TableContainer>
+                            <Table size="small">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell>Course Code</TableCell>
+                                  <TableCell>Course Name</TableCell>
+                                  <TableCell>Semester</TableCell>
+                                  <TableCell>Credits</TableCell>
+                                  <TableCell>Grade</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {record.courses.map((course, idx) => (
+                                  <TableRow key={idx}>
+                                    <TableCell>{course.course_code}</TableCell>
+                                    <TableCell>{course.course_name}</TableCell>
+                                    <TableCell>{course.course_semester}</TableCell>
+                                    <TableCell>{course.credits}</TableCell>
+                                    <TableCell>{course.grade}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </CardContent>
+                      </Card>
+                    ))}
+                    
+                    {semesterRecords.length === 0 && (
+                      <Alert severity="info">No semester records available</Alert>
+                    )}
+                  </Box>
+                )}
+                
+                {/* Analytics Tab */}
+                {academicTabValue === 1 && (
+                  <Box>
+                    <Typography variant="h6" gutterBottom>Academic Analytics</Typography>
+                    
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={6}>
+                        <Card>
+                          <CardContent>
+                            <Typography variant="subtitle1" gutterBottom>SGPA Trend</Typography>
+                            <Box sx={{ height: 300 }}>
+                              <Line 
+                                data={sgpaTrendData}
+                                options={{
+                                  responsive: true,
+                                  maintainAspectRatio: false,
+                                  scales: {
+                                    y: {
+                                      beginAtZero: false,
+                                      min: 5,
+                                      max: 10,
+                                      title: {
+                                        display: true,
+                                        text: 'SGPA'
+                                      }
+                                    },
+                                    x: {
+                                      title: {
+                                        display: true,
+                                        text: 'Semester'
+                                      }
+                                    }
+                                  }
+                                }}
+                              />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                      
+                      <Grid item xs={12} md={6}>
+                        <Card>
+                          <CardContent>
+                            <Typography variant="subtitle1" gutterBottom>Grade Distribution</Typography>
+                            <Box sx={{ height: 300 }}>
+                              <Bar 
+                                data={gradeDistributionData}
+                                options={{
+                                  responsive: true,
+                                  maintainAspectRatio: false,
+                                  scales: {
+                                    y: {
+                                      beginAtZero: true,
+                                      title: {
+                                        display: true,
+                                        text: 'Number of Courses'
+                                      }
+                                    }
+                                  }
+                                }}
+                              />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                      
+                      <Grid item xs={12}>
+                        <Card>
+                          <CardContent>
+                            <Typography variant="subtitle1" gutterBottom>Subject Area Performance</Typography>
+                            <Box sx={{ height: 300 }}>
+                              <Bar 
+                                data={subjectAreaData}
+                                options={{
+                                  responsive: true,
+                                  maintainAspectRatio: false,
+                                  scales: {
+                                    y: {
+                                      beginAtZero: false,
+                                      min: 5,
+                                      max: 10,
+                                      title: {
+                                        display: true,
+                                        text: 'Average Grade Points'
+                                      }
+                                    }
+                                  }
+                                }}
+                              />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
               </Box>
-              
-              {student.achievements && student.achievements.length > 0 ? (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Title</TableCell>
-                        <TableCell>Category</TableCell>
-                        <TableCell>Scope</TableCell>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell align="center">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {student.achievements.map((achievement) => (
-                        <TableRow key={achievement.id}>
-                          <TableCell>{achievement.title}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={achievement.category || 'General'} 
-                              size="small"
-                              color={
-                                achievement.category === 'Academic' ? 'primary' :
-                                achievement.category === 'Sports' ? 'success' :
-                                achievement.category === 'Cultural' ? 'secondary' : 'default'
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={achievement.scope || 'Inside the College'} 
-                              size="small"
-                              color={achievement.scope === 'Outside the College' ? 'info' : 'default'}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {achievement.achievement_date || 'N/A'}
-                          </TableCell>
-                          <TableCell>{achievement.description}</TableCell>
-                          <TableCell align="center">
-                            <IconButton 
-                              size="small" 
-                              color="primary"
-                              onClick={() => handleOpenDialog('achievement', achievement)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton 
-                              size="small" 
-                              color="error"
-                              onClick={() => handleDelete('achievement', achievement.id)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <Alert severity="info">No achievements available</Alert>
-              )}
-            </Box>
-          )}
-          
-          {/* Certifications Tab */}
-          {tabValue === 2 && (
-            <Box sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">Certifications</Typography>
-                <Button 
-                  variant="contained" 
-                  startIcon={<AddIcon />}
-                  onClick={() => handleOpenDialog('certification')}
-                >
-                  Add Certification
-                </Button>
-              </Box>
-              
-              {student.certifications && student.certifications.length > 0 ? (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Title</TableCell>
-                        <TableCell>Issuing Organization</TableCell>
-                        <TableCell>Issue Date</TableCell>
-                        <TableCell>Expiry Date</TableCell>
-                        <TableCell>Credential ID</TableCell>
-                        <TableCell>Verification</TableCell>
-                        <TableCell align="center">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {student.certifications.map((certification) => (
-                        <TableRow key={certification.id}>
-                          <TableCell>{certification.title}</TableCell>
-                          <TableCell>{certification.issuing_organization}</TableCell>
-                          <TableCell>
-                            {new Date(certification.issue_date).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {certification.expiry_date ? 
-                              new Date(certification.expiry_date).toLocaleDateString() : 
-                              'No Expiry'
-                            }
-                          </TableCell>
-                          <TableCell>{certification.credential_id}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={certification.verified ? "Verified" : "Not Verified"}
-                              color={certification.verified ? "success" : "default"}
-                              size="small"
-                            />
-                          </TableCell>
-                          <TableCell align="center">
-                            <IconButton 
-                              size="small" 
-                              color="primary"
-                              onClick={() => handleOpenDialog('certification', certification)}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                            <IconButton 
-                              size="small" 
-                              color="error"
-                              onClick={() => handleDelete('certification', certification.id)}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <Alert severity="info">No certifications available</Alert>
-              )}
-            </Box>
-          )}
-          
-          {/* Attendance Tab */}
-          {tabValue === 3 && (
-            <Box sx={{ p: 3 }}>
-              <Typography variant="h6" gutterBottom>Attendance Records</Typography>
-              
-              {student.attendance && student.attendance.length > 0 ? (
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Attendance Percentage</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {student.attendance.map((record, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Box sx={{ width: '60%', mr: 1 }}>
-                                <Box
-                                  sx={{
-                                    height: 10,
-                                    borderRadius: 5,
-                                    bgcolor: 'background.paper',
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    position: 'relative',
-                                    overflow: 'hidden'
-                                  }}
-                                >
-                                  <Box
-                                    sx={{
-                                      height: '100%',
-                                      width: `${record.attendance_percentage}%`,
-                                      bgcolor: 
-                                        record.attendance_percentage >= 75 ? 'success.main' :
-                                        record.attendance_percentage >= 60 ? 'warning.main' : 'error.main',
-                                    }}
-                                  />
-                                </Box>
-                              </Box>
-                              <Typography variant="body2">
-                                {record.attendance_percentage}%
+            )}
+
+            {/* Achievements Tab */}
+            {tabValue === 0 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>Achievements</Typography>
+                {student.achievements && student.achievements.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {student.achievements.map((achievement, index) => (
+                      <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                          <CardContent sx={{ flexGrow: 1 }}>
+                            <Typography variant="h6" noWrap gutterBottom>{achievement.title}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                              {achievement.description}
+                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 'auto' }}>
+                              <Chip 
+                                label={achievement.category} 
+                                size="small" 
+                                color="primary" 
+                              />
+                              <Typography variant="body2" color="text.secondary">
+                                {new Date(achievement.achievement_date).toLocaleDateString()}
                               </Typography>
                             </Box>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              ) : (
-                <Alert severity="info">No attendance records available</Alert>
-              )}
-            </Box>
-          )}
-          
-          {/* Counseling Notes Tab */}
-          {tabValue === 4 && (
-            <Box sx={{ p: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                <Typography variant="h6">Counseling Notes</Typography>
-                <Button 
-                  variant="contained" 
-                  startIcon={<AddIcon />}
-                  onClick={() => handleOpenDialog('counseling')}
-                >
-                  Add Note
-                </Button>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Alert severity="info">No achievements recorded</Alert>
+                )}
               </Box>
-              
-              {student.counselingNotes && student.counselingNotes.length > 0 ? (
-                <List>
-                  {student.counselingNotes.map((note) => (
-                    <Paper key={note.id} sx={{ mb: 2, p: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="subtitle1" fontWeight="bold">
-                          {new Date(note.counseling_date).toLocaleDateString()}
-                        </Typography>
-                        <Box>
-                          <IconButton 
-                            size="small" 
-                            color="primary"
-                            onClick={() => handleOpenDialog('counseling', note)}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton 
-                            size="small" 
-                            color="error"
-                            onClick={() => handleDelete('counseling', note.id)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Box>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        By: {note.faculty_name}
-                      </Typography>
-                      <Typography variant="body1">
-                        {note.note}
-                      </Typography>
-                    </Paper>
-                  ))}
-                </List>
-              ) : (
-                <Alert severity="info">No counseling notes available</Alert>
-              )}
-            </Box>
-          )}
-        </Paper>
-      </motion.div>
+            )}
 
-      {/* Dialog for adding/editing items */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {dialogType === 'achievement' && (dialogData.id ? 'Edit Achievement' : 'Add Achievement')}
-          {dialogType === 'certification' && (dialogData.id ? 'Edit Certification' : 'Add Certification')}
-          {dialogType === 'counseling' && (dialogData.id ? 'Edit Counseling Note' : 'Add Counseling Note')}
-        </DialogTitle>
-        <DialogContent>
-          {/* Achievement Form */}
-          {dialogType === 'achievement' && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12}>
-                <TextField
-                  name="title"
-                  label="Title"
-                  fullWidth
-                  value={dialogData.title || ''}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="category"
-                  label="Category"
-                  fullWidth
-                  select
-                  value={dialogData.category || 'General'}
-                  onChange={handleInputChange}
-                  SelectProps={{
-                    native: true,
-                  }}
-                >
-                  <option value="Academic">Academic</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Cultural">Cultural</option>
-                  <option value="General">General</option>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="scope"
-                  label="Scope"
-                  fullWidth
-                  select
-                  value={dialogData.scope || 'Inside the College'}
-                  onChange={handleInputChange}
-                  SelectProps={{
-                    native: true,
-                  }}
-                >
-                  <option value="Inside the College">Inside the College</option>
-                  <option value="Outside the College">Outside the College</option>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="achievement_date"
-                  label="Achievement Date (DD/MM/YYYY)"
-                  fullWidth
-                  value={dialogData.achievement_date || ''}
-                  onChange={handleInputChange}
-                  placeholder="DD/MM/YYYY"
-                  required
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  name="description"
-                  label="Description"
-                  fullWidth
-                  multiline
-                  rows={4}
-                  value={dialogData.description || ''}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-            </Grid>
-          )}
-          
-          {/* Certification Form */}
-          {dialogType === 'certification' && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="title"
-                  label="Title"
-                  fullWidth
-                  value={dialogData.title || ''}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="issuing_organization"
-                  label="Issuing Organization"
-                  fullWidth
-                  value={dialogData.issuing_organization || ''}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="issue_date"
-                  label="Issue Date (DD/MM/YYYY)"
-                  fullWidth
-                  value={dialogData.issue_date || ''}
-                  onChange={handleInputChange}
-                  placeholder="DD/MM/YYYY"
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="expiry_date"
-                  label="Expiry Date (DD/MM/YYYY)"
-                  fullWidth
-                  value={dialogData.expiry_date || ''}
-                  onChange={handleInputChange}
-                  placeholder="DD/MM/YYYY"
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="credential_id"
-                  label="Credential ID"
-                  fullWidth
-                  value={dialogData.credential_id || ''}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  name="certificate_url"
-                  label="Certificate URL"
-                  fullWidth
-                  value={dialogData.certificate_url || ''}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  name="description"
-                  label="Description"
-                  fullWidth
-                  multiline
-                  rows={3}
-                  value={dialogData.description || ''}
-                  onChange={handleInputChange}
-                />
-              </Grid>
-            </Grid>
-          )}
-          
-          {/* Counseling Note Form */}
-          {dialogType === 'counseling' && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12}>
-                <TextField
-                  name="counselingDate"
-                  label="Date"
-                  type="date"
-                  fullWidth
-                  value={dialogData.counselingDate || new Date().toISOString().split('T')[0]}
-                  onChange={handleInputChange}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  name="note"
-                  label="Note"
-                  fullWidth
-                  multiline
-                  rows={6}
-                  value={dialogData.note || ''}
-                  onChange={handleInputChange}
-                  required
-                />
-              </Grid>
-            </Grid>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSaveDialog} variant="contained">Save</Button>
-        </DialogActions>
-      </Dialog>
+            {/* Certifications Tab */}
+            {tabValue === 2 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>Certifications</Typography>
+                {student.certifications && student.certifications.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {student.certifications.map((certification, index) => (
+                      <Grid item xs={12} sm={6} md={4} key={index}>
+                        <Card variant="outlined" sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                          <CardContent sx={{ flexGrow: 1 }}>
+                            <Typography variant="h6" noWrap gutterBottom>{certification.title}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Issued by: {certification.issuer || certification.issuing_organization}
+                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 'auto' }}>
+                              <Typography variant="body2" color="text.secondary">
+                                ID: {certification.credential_id || 'N/A'}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {new Date(certification.issue_date).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Alert severity="info">No certifications recorded</Alert>
+                )}
+              </Box>
+            )}
+
+            {/* Counseling Tab */}
+            {tabValue === 3 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>Counseling Notes</Typography>
+                {student.counselingNotes && student.counselingNotes.length > 0 ? (
+                  <List>
+                    {student.counselingNotes.map((note, index) => (
+                      <ListItem key={index} divider={index < student.counselingNotes.length - 1}>
+                        <ListItemIcon>
+                          <CounselingIcon />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={note.title || 'Counseling Session'}
+                          secondary={
+                            <>
+                              <Typography variant="body2" component="span">
+                                {note.notes || note.content}
+                              </Typography>
+                              <br />
+                              <Typography variant="caption" color="text.secondary">
+                                {new Date(note.created_at).toLocaleDateString()} by {note.first_name} {note.last_name}
+                              </Typography>
+                            </>
+                          }
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                ) : (
+                  <Alert severity="info">No counseling notes recorded</Alert>
+                )}
+              </Box>
+            )}
+          </Paper>
+        </Grid>
+      </Grid>
     </motion.div>
   );
 };

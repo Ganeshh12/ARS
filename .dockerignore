@@ -1,54 +1,21 @@
-# Git
-.git
+# Node.js specific ignores
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Development/version control related ignores
+.git/
 .gitignore
+.editorconfig
+.vscode/ # If you use VS Code for development
+*.log # General log files
 
-# Node.js
-frontend/node_modules
-frontend/dist
-frontend/.cache
-frontend/npm-debug.log
-frontend/yarn-debug.log
-frontend/yarn-error.log
+Dockerfile
+docker-compose.yml
 
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
-provenv/
-
-# Virtual Environment
-venv/
-ENV/
-env/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS specific
-.DS_Store
-Thumbs.db
-
-# Project specific
-output/
-*.log
-.dist/
+# Files not needed in the final image
+LICENSE
+.nvmrc
+reporting_system.sql
+*.md
+*.sql

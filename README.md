@@ -22,7 +22,7 @@ A comprehensive system for managing student records, achievements, certification
 
 ### Prerequisites
 
-- Node.js (v14+)
+- Node.js (v20.19.3)
 - MySQL (v8+)
 - npm or yarn
 

@@ -1,5 +1,5 @@
-const mysql = require('mysql2/promise');
-const dotenv = require('dotenv');
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
@@ -26,4 +26,5 @@ const pool = mysql.createPool({
   }
 })();
 
-module.exports = pool;
+// Export using ESM syntax
+export default pool;

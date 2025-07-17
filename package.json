@@ -1,7 +1,23 @@
 {
+  "name": "academic-reporting-system",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build:frontend": "npm run build --workspace=frontend",
+    "build:backend": "copyfiles --up 1 \"backend/**/*\" dist/backend/ && copyfiles -a \"backend/.env\" dist/backend/",
+    "build": "npm run clean && npm run build:frontend && npm run build:backend",
+    "start:dist": "cd dist/backend && npm install --production && node index.js"
+  },
   "dependencies": {
-    "@mui/x-date-pickers": "^8.3.1",
-    "date-fns": "^4.1.0",
-    "framer-motion": "^12.10.5"
+    "ejs": "^3.1.10",
+    "npm": "^11.4.2"
+  },
+  "devDependencies": {
+    "copyfiles": "^2.4.1"
   }
 }

@@ -43,6 +43,7 @@ const PrincipalSidebar = ({ open, onToggle }) => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    localStorage.clear();
     navigate('/login');
   };
 

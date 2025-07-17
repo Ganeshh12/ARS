@@ -1,10 +1,202 @@
-const express = require('express');
+import express from 'express';
+import authenticateToken from '../middleware/auth.js';
+import pool from '../config/database.js';
+
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
-const pool = require('../config/database');
 
 // Apply authentication middleware to all faculty routes
 router.use(authenticateToken);
+
+// Apply authentication middleware to all faculty routes
+router.use(authenticateToken);
+
+// Get all students (no filtering by faculty)
+router.get('/all-students', async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store');
+
+    const connection = await pool.getConnection();
+    
+    try {
+      // Get filter parameters
+      const { branch, semester } = req.query;
+      
+      console.log(`API: /faculty/all-students - branch: ${branch}, semester: ${semester}`);
+      
+      // Build query for all students
+      let query = `SELECT * FROM students WHERE 1=1`;
+      const queryParams = [];
+      
+      // Add branch filter if provided
+      if (branch) {
+        query += ` AND branch = ?`;
+        queryParams.push(branch);
+      }
+      
+      // Add semester filter if provided
+      if (semester) {
+        query += ` AND current_semester = ?`;
+        queryParams.push(semester);
+      }
+      
+      console.log(`API: Executing query: ${query} with params: ${queryParams}`);
+      
+      // Execute query
+      const [students] = await connection.query(query, queryParams);
+      console.log(`API: Returning ${students.length} students from all-students endpoint`);
+      
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching all students:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch students',
+        details: error.message
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({ 
+      error: 'Database connection error',
+      details: error.message
+    });
+  }
+});
+
+// Get only students assigned to the faculty (proctoring students)
+router.get('/my-students', async (req, res) => {
+  try {
+    const connection = await pool.getConnection();
+    
+    try {
+      // Get username from query parameter
+      const username = req.query.username;
+      
+      // Get filter parameters
+      const { branch, semester } = req.query;
+      
+      console.log(`API: /faculty/my-students - username: ${username}, branch: ${branch}, semester: ${semester}`);
+      
+      if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+      }
+      
+      // Create faculty_username_mapping table if it doesn't exist
+      try {
+        const [tableCheck] = await connection.query(`
+          SELECT COUNT(*) as table_exists 
+          FROM information_schema.tables 
+          WHERE table_schema = DATABASE() 
+          AND table_name = 'faculty_username_mapping'
+        `);
+        
+        const tableExists = tableCheck[0].table_exists > 0;
+        console.log(`API: faculty_username_mapping table exists: ${tableExists}`);
+        
+        if (!tableExists) {
+          console.log(`API: Creating faculty_username_mapping table`);
+          
+          // Create the table if it doesn't exist
+          await connection.query(`
+            CREATE TABLE IF NOT EXISTS faculty_username_mapping (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              faculty_username VARCHAR(50) NOT NULL,
+              registration_number VARCHAR(20) NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              UNIQUE KEY unique_mapping (faculty_username, registration_number)
+            )
+          `);
+          
+          // Add sample data for testing
+          await connection.query(`
+            INSERT IGNORE INTO faculty_username_mapping (faculty_username, registration_number)
+            SELECT 
+              'faculty',
+              registration_number
+            FROM 
+              students
+            LIMIT 10
+          `);
+          
+          console.log(`API: Added sample data to faculty_username_mapping table`);
+        }
+        
+        // Check if there are any mappings for this username
+        const [mappingCheck] = await connection.query(`
+          SELECT COUNT(*) as mapping_count 
+          FROM faculty_username_mapping 
+          WHERE faculty_username = ?
+        `, [username]);
+        
+        const mappingCount = mappingCheck[0].mapping_count;
+        console.log(`API: Found ${mappingCount} mappings for username: ${username}`);
+        
+        if (mappingCount === 0) {
+          console.log(`API: No mappings found, adding sample data for ${username}`);
+          
+          // Add sample data for this username
+          await connection.query(`
+            INSERT IGNORE INTO faculty_username_mapping (faculty_username, registration_number)
+            SELECT 
+              ?,
+              registration_number
+            FROM 
+              students
+            LIMIT 5
+          `, [username]);
+          
+          console.log(`API: Added 5 sample mappings for ${username}`);
+        }
+      } catch (error) {
+        console.error('Error checking or creating faculty_username_mapping table:', error);
+      }
+      
+      // Build query for faculty's students
+      let query = `
+        SELECT s.* 
+        FROM students s
+        JOIN faculty_username_mapping fum ON s.registration_number = fum.registration_number
+        WHERE fum.faculty_username = ?
+      `;
+      const queryParams = [username];
+      
+      // Add branch filter if provided
+      if (branch) {
+        query += ` AND s.branch = ?`;
+        queryParams.push(branch);
+      }
+      
+      // Add semester filter if provided
+      if (semester) {
+        query += ` AND s.current_semester = ?`;
+        queryParams.push(semester);
+      }
+      
+      console.log(`API: Executing query: ${query} with params: ${queryParams}`);
+      
+      // Execute query
+      const [students] = await connection.query(query, queryParams);
+      console.log(`API: Returning ${students.length} students from my-students endpoint`);
+      
+      res.json(students);
+    } catch (error) {
+      console.error('Error fetching faculty students:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch students',
+        details: error.message
+      });
+    } finally {
+      connection.release();
+    }
+  } catch (error) {
+    console.error('Database connection error:', error);
+    res.status(500).json({ 
+      error: 'Database connection error',
+      details: error.message
+    });
+  }
+});
 
 // Faculty dashboard data
 router.get('/dashboard', async (req, res) => {
@@ -12,414 +204,80 @@ router.get('/dashboard', async (req, res) => {
     const connection = await pool.getConnection();
     
     try {
-      // Get faculty ID from token
-      const facultyId = req.user?.id || 1; // Default to ID 1 if not available
+      // Get username from query parameter
+      const username = req.query.username;
       
-      // 1. Get total students assigned to faculty
-      let totalStudents = 0;
-      try {
-        const [studentCountResult] = await connection.query(`
-          SELECT COUNT(*) as totalStudents 
-          FROM faculty_student_mapping 
-          WHERE faculty_id = ?
-        `, [facultyId]);
-        
-        totalStudents = studentCountResult[0]?.totalStudents || 0;
-      } catch (error) {
-        console.log('Error getting student count, using default:', error.message);
-        // If faculty_student_mapping doesn't exist, create it
-        if (error.code === 'ER_NO_SUCH_TABLE') {
-          await connection.query(`
-            CREATE TABLE IF NOT EXISTS faculty_student_mapping (
-              id INT AUTO_INCREMENT PRIMARY KEY,
-              faculty_id INT NOT NULL,
-              student_id INT NOT NULL,
-              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-              UNIQUE KEY unique_mapping (faculty_id, student_id)
-            )
-          `);
-          
-          // Add sample data
-          await connection.query(`
-            INSERT IGNORE INTO faculty_student_mapping (faculty_id, student_id)
-            SELECT 1, id FROM students LIMIT 50
-          `);
-          
-          // Get count again
-          const [studentCountResult] = await connection.query(`
-            SELECT COUNT(*) as totalStudents 
-            FROM faculty_student_mapping 
-            WHERE faculty_id = ?
-          `, [facultyId]);
-          
-          totalStudents = studentCountResult[0]?.totalStudents || 0;
-        }
-      }
+      // Get filter parameter
+      const filter = req.query.filter;
       
-      // 2. Get average CGPA from grades table
-      let avgCGPA = 7.8; // Default value
+      console.log(`API: /faculty/dashboard - username: ${username}, filter: ${filter}`);
+
+
+      // Get faculty ID from username
+      let facultyId = null;
       try {
-        const [avgCgpaResult] = await connection.query(`
-          SELECT AVG(g.grade_points) as avgCGPA
-          FROM grades g
-          JOIN students s ON g.registration_number = s.registration_number
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          WHERE fsm.faculty_id = ?
-        `, [facultyId]);
+        const [userResult] = await connection.query(
+          'SELECT id FROM users WHERE username = ?',
+          [username]
+        );
         
-        if (avgCgpaResult[0]?.avgCGPA) {
-          avgCGPA = parseFloat(avgCgpaResult[0].avgCGPA).toFixed(1);
+        if (userResult.length > 0) {
+          facultyId = userResult[0].id;
         }
       } catch (error) {
-        console.log('Error getting CGPA, using default:', error.message);
+        console.log('Error getting faculty ID from username:', error.message);
       }
       
-      // 3. Get achievements count - using registration_number
-      let achievements = 0; // Default value
-      try {
-        const [achievementsResult] = await connection.query(`
-          SELECT COUNT(*) as achievementCount
-          FROM achievements a
-          JOIN students s ON a.registration_number = s.registration_number
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          WHERE fsm.faculty_id = ?
-        `, [facultyId]);
-        
-        achievements = achievementsResult[0]?.achievementCount || 0;
-      } catch (error) {
-        console.log('Error getting achievements, using default:', error.message);
+      // Return dashboard data based on filter
+      if (filter === 'proctoring') {
+        // Return data for proctoring students
+        // This will be implemented in the dashboard endpoint
+      } else {
+        // Return data for all students
+        // This will be implemented in the dashboard endpoint
       }
       
-      // 4. Get certifications count - using registration_number
-      let certifications = 0; // Default value
-      try {
-        const [certCountResult] = await connection.query(`
-          SELECT COUNT(*) as certCount
-          FROM certifications c
-          JOIN students s ON c.registration_number = s.registration_number
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          WHERE fsm.faculty_id = ?
-        `, [facultyId]);
-        
-        certifications = certCountResult[0]?.certCount || 0;
-      } catch (error) {
-        console.log('Error getting certifications, using default:', error.message);
-      }
-      
-      // 7. Get real-time recent activities from achievements and certifications
-      let recentActivities = [];
-      try {
-        // Get recent achievements
-        const [recentAchievements] = await connection.query(`
-          SELECT 
-            a.id,
-            'achievement' as type,
-            s.name as student,
-            a.title,
-            DATE_FORMAT(a.achievement_date, '%Y-%m-%d') as date
-          FROM achievements a
-          JOIN students s ON a.registration_number = s.registration_number
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          WHERE fsm.faculty_id = ?
-          ORDER BY a.achievement_date DESC
-          LIMIT 3
-        `, [facultyId]);
-        
-        // Get recent certifications
-        const [recentCertifications] = await connection.query(`
-          SELECT 
-            c.id,
-            'certification' as type,
-            s.name as student,
-            c.title,
-            DATE_FORMAT(c.issue_date, '%Y-%m-%d') as date
-          FROM certifications c
-          JOIN students s ON c.registration_number = s.registration_number
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          WHERE fsm.faculty_id = ?
-          ORDER BY c.issue_date DESC
-          LIMIT 3
-        `, [facultyId]);
-        
-        // Get recent grades
-        const [recentGrades] = await connection.query(`
-          SELECT 
-            g.id,
-            'grade' as type,
-            s.name as student,
-            CONCAT('Scored ', g.grade_points, ' in ', g.course_code) as title,
-            DATE_FORMAT(g.month_year, '%Y-%m-%d') as date
-          FROM grades g
-          JOIN students s ON g.registration_number = s.registration_number
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          WHERE fsm.faculty_id = ?
-          ORDER BY g.month_year DESC
-          LIMIT 3
-        `, [facultyId]);
-        
-        // Combine and sort recent activities
-        recentActivities = [...recentAchievements, ...recentCertifications, ...recentGrades]
-          .sort((a, b) => new Date(b.date) - new Date(a.date))
-          .slice(0, 4);
-        
-        // If no activities found, use mock data
-        if (recentActivities.length === 0) {
-          recentActivities = [
-            { id: 1, type: 'achievement', student: 'Anusuri Bharathi', title: 'Won coding competition', date: '2024-05-15' },
-            { id: 2, type: 'certification', student: 'Akella Venkata', title: 'AWS Certified Developer', date: '2024-05-10' },
-            { id: 3, type: 'grade', student: 'Ari Naresh', title: 'Scored 9.5 in Machine Learning', date: '2024-05-05' },
-            { id: 4, type: 'attendance', student: 'Arugollu Lalu Prasad', title: 'Perfect attendance for May', date: '2024-05-01' }
-          ];
-        }
-      } catch (error) {
-        console.log('Error getting recent activities, using default:', error.message);
-        recentActivities = [
+      // Return mock data for now
+      res.json({
+        stats: {
+          totalStudents: filter === 'all' ? 245 : 45,
+          avgCGPA: 7.8,
+          achievements: filter === 'all' ? 78 : 32,
+          certifications: filter === 'all' ? 56 : 18
+        },
+        topStudents: [
+          { id: 1, name: 'Anusuri Bharathi', regNo: '22A91A6102', cgpa: 9.8, achievements: 5 },
+          { id: 2, name: 'Akella Venkata', regNo: '22A91A6101', cgpa: 9.6, achievements: 4 },
+          { id: 3, name: 'Ari Naresh', regNo: '22A91A6103', cgpa: 9.5, achievements: 3 },
+          { id: 4, name: 'Arugollu Lalu Prasad', regNo: '22A91A6104', cgpa: 9.4, achievements: 3 },
+          { id: 5, name: 'Ayushi Singh', regNo: '22A91A6105', cgpa: 9.3, achievements: 2 }
+        ],
+        recentActivities: [
           { id: 1, type: 'achievement', student: 'Anusuri Bharathi', title: 'Won coding competition', date: '2024-05-15' },
           { id: 2, type: 'certification', student: 'Akella Venkata', title: 'AWS Certified Developer', date: '2024-05-10' },
-          { id: 3, type: 'grade', student: 'Ari Naresh', title: 'Scored 9.5 in Machine Learning', date: '2024-05-05' },
-          { id: 4, type: 'attendance', student: 'Arugollu Lalu Prasad', title: 'Perfect attendance for May', date: '2024-05-01' }
-        ];
-      }
-      
-      // 8. Get student performance data (semester-wise CGPA averages)
-      let studentPerformance = {
-        labels: [],
-        datasets: [
-          {
-            label: 'Average CGPA',
-            data: [],
-            borderColor: '#4568dc',
-            backgroundColor: 'rgba(69, 104, 220, 0.1)',
-            fill: true,
-            tension: 0.4
-          }
-        ]
-      };
-      
-      try {
-        // Get semester-wise CGPA data
-        const [semesterData] = await connection.query(`
-          SELECT 
-            c.semester,
-            AVG(g.grade_points) as avg_cgpa
-          FROM grades g
-          JOIN courses c ON g.course_code = c.code
-          JOIN students s ON g.registration_number = s.registration_number
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          WHERE fsm.faculty_id = ?
-          GROUP BY c.semester
-          ORDER BY c.semester
-        `, [facultyId]);
-        
-        if (semesterData.length > 0) {
-          studentPerformance = {
-            labels: semesterData.map(item => `Semester ${item.semester}`),
-            datasets: [
-              {
-                label: 'Average CGPA',
-                data: semesterData.map(item => parseFloat(item.avg_cgpa).toFixed(1)),
-                borderColor: '#4568dc',
-                backgroundColor: 'rgba(69, 104, 220, 0.1)',
-                fill: true,
-                tension: 0.4
-              }
-            ]
-          };
-        } else {
-          // If no semester data, try to get monthly data
-          const [monthlyData] = await connection.query(`
-            SELECT 
-              DATE_FORMAT(g.month_year, '%b') as month,
-              AVG(g.grade_points) as avg_cgpa
-            FROM grades g
-            JOIN students s ON g.registration_number = s.registration_number
-            JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-            WHERE fsm.faculty_id = ?
-            GROUP BY DATE_FORMAT(g.month_year, '%b')
-            ORDER BY MIN(g.month_year)
-            LIMIT 5
-          `, [facultyId]);
-          
-          if (monthlyData.length > 0) {
-            studentPerformance = {
-              labels: monthlyData.map(item => item.month),
-              datasets: [
-                {
-                  label: 'Average CGPA',
-                  data: monthlyData.map(item => parseFloat(item.avg_cgpa).toFixed(1)),
-                  borderColor: '#4568dc',
-                  backgroundColor: 'rgba(69, 104, 220, 0.1)',
-                  fill: true,
-                  tension: 0.4
-                }
-              ]
-            };
-          } else {
-            // If no data at all, use default mock data
-            studentPerformance = {
-              labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-              datasets: [
-                {
-                  label: 'Average CGPA',
-                  data: [7.2, 7.4, 7.6, 7.7, 7.8],
-                  borderColor: '#4568dc',
-                  backgroundColor: 'rgba(69, 104, 220, 0.1)',
-                  fill: true,
-                  tension: 0.4
-                }
-              ]
-            };
-          }
-        }
-      } catch (error) {
-        console.log('Error getting performance data, using default:', error.message);
-        studentPerformance = {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+          { id: 3, type: 'achievement', student: 'Ari Naresh', title: 'Published research paper', date: '2024-05-05' },
+          { id: 4, type: 'certification', student: 'Arugollu Lalu Prasad', title: 'Microsoft Azure Fundamentals', date: '2024-05-01' }
+        ],
+        studentPerformance: {
+          labels: ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4'],
           datasets: [
             {
-              label: 'Average CGPA',
-              data: [7.2, 7.4, 7.6, 7.7, 7.8],
+              label: 'Average SGPA',
+              data: [8.2, 8.5, 8.3, 8.7],
               borderColor: '#4568dc',
               backgroundColor: 'rgba(69, 104, 220, 0.1)',
               fill: true,
               tension: 0.4
             }
           ]
-        };
-      }
-      
-      // 9. Get attendance data by month
-      let attendanceData = {
-        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
-        datasets: [
-          {
-            label: 'Attendance Rate (%)',
-            data: [88, 90, 89, 91, 92],
-            backgroundColor: '#4caf50',
-            borderColor: '#388e3c',
-            borderWidth: 1
-          }
-        ]
-      };
-      
-      // 10. Get top performing students
-      let topStudents = [];
-      try {
-        const [students] = await connection.query(`
-          SELECT 
-            s.id,
-            s.name,
-            s.registration_number as regNo,
-            AVG(g.grade_points) as cgpa,
-            (SELECT COUNT(*) FROM achievements a WHERE a.registration_number = s.registration_number) as achievements
-          FROM students s
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          JOIN grades g ON s.registration_number = g.registration_number
-          WHERE fsm.faculty_id = ?
-          GROUP BY s.id, s.name, s.registration_number
-          ORDER BY cgpa DESC
-          LIMIT 5
-        `, [facultyId]);
-        
-        if (students.length > 0) {
-          topStudents = students.map(student => ({
-            ...student,
-            cgpa: parseFloat(student.cgpa).toFixed(1),
-            achievements: parseInt(student.achievements) || 0
-          }));
-        } else {
-          // Fallback to default data
-          topStudents = [
-            { id: 1, name: 'Anusuri Bharathi', regNo: '22A91A6102', cgpa: 9.8, achievements: 5 },
-            { id: 2, name: 'Akella Venkata', regNo: '22A91A6101', cgpa: 9.6, achievements: 4 },
-            { id: 3, name: 'Ari Naresh', regNo: '22A91A6103', cgpa: 9.5, achievements: 3 },
-            { id: 4, name: 'Arugollu Lalu Prasad', regNo: '22A91A6104', cgpa: 9.4, achievements: 3 },
-            { id: 5, name: 'Ayushi Singh', regNo: '22A91A6105', cgpa: 9.3, achievements: 2 }
-          ];
-        }
-      } catch (error) {
-        console.log('Error getting top students, using default:', error.message);
-        topStudents = [
-          { id: 1, name: 'Anusuri Bharathi', regNo: '22A91A6102', cgpa: 9.8, achievements: 5 },
-          { id: 2, name: 'Akella Venkata', regNo: '22A91A6101', cgpa: 9.6, achievements: 4 },
-          { id: 3, name: 'Ari Naresh', regNo: '22A91A6103', cgpa: 9.5, achievements: 3 },
-          { id: 4, name: 'Arugollu Lalu Prasad', regNo: '22A91A6104', cgpa: 9.4, achievements: 3 },
-          { id: 5, name: 'Ayushi Singh', regNo: '22A91A6105', cgpa: 9.3, achievements: 2 }
-        ];
-      }
-      
-      // 11. Get subject distribution
-      let subjectDistribution = {
-        labels: ['Excellent', 'Good', 'Average', 'Below Average', 'Poor'],
-        datasets: [
-          {
-            data: [30, 45, 25, 15, 5],
-            backgroundColor: ['#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#f44336'],
-            borderWidth: 0
-          }
-        ]
-      };
-      
-      try {
-        const [distributionData] = await connection.query(`
-          SELECT 
-            CASE 
-              WHEN AVG(g.grade_points) >= 8.5 THEN 'Excellent'
-              WHEN AVG(g.grade_points) >= 7.0 THEN 'Good'
-              WHEN AVG(g.grade_points) >= 6.0 THEN 'Average'
-              WHEN AVG(g.grade_points) >= 5.0 THEN 'Below Average'
-              ELSE 'Poor'
-            END as performance_category,
-            COUNT(*) as count
-          FROM students s
-          JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-          JOIN grades g ON s.registration_number = g.registration_number
-          WHERE fsm.faculty_id = ?
-          GROUP BY 
-            CASE 
-              WHEN AVG(g.grade_points) >= 8.5 THEN 'Excellent'
-              WHEN AVG(g.grade_points) >= 7.0 THEN 'Good'
-              WHEN AVG(g.grade_points) >= 6.0 THEN 'Average'
-              WHEN AVG(g.grade_points) >= 5.0 THEN 'Below Average'
-              ELSE 'Poor'
-            END
-        `, [facultyId]);
-        
-        if (distributionData.length > 0) {
-          const categories = ['Excellent', 'Good', 'Average', 'Below Average', 'Poor'];
-          const counts = categories.map(category => {
-            const found = distributionData.find(item => item.performance_category === category);
-            return found ? parseInt(found.count) : 0;
-          });
-          
-          subjectDistribution = {
-            labels: categories,
-            datasets: [
-              {
-                data: counts,
-                backgroundColor: ['#4caf50', '#8bc34a', '#ffeb3b', '#ff9800', '#f44336'],
-                borderWidth: 0
-              }
-            ]
-          };
-        }
-      } catch (error) {
-        console.log('Error getting performance distribution, using default:', error.message);
-      }
-      
-      // Return complete dashboard data
-      res.json({
-        stats: {
-          totalStudents,
-          avgCGPA,
-          achievements,
-          certifications
         },
-        recentActivities,
-        studentPerformance,
-        attendanceData,
-        subjectDistribution,
-        topStudents
+        branchDistribution: [
+          { branch: 'CSE', count: filter === 'all' ? 120 : 20 },
+          { branch: 'ECE', count: filter === 'all' ? 85 : 15 },
+          { branch: 'IT', count: filter === 'all' ? 65 : 5 },
+          { branch: 'MECH', count: filter === 'all' ? 45 : 3 },
+          { branch: 'CIVIL', count: filter === 'all' ? 30 : 2 }
+        ]
       });
     } catch (error) {
       console.error('Error fetching faculty dashboard data:', error);
@@ -439,70 +297,4 @@ router.get('/dashboard', async (req, res) => {
   }
 });
 
-// Get students assigned to faculty
-router.get('/students', async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    
-    try {
-      // Get faculty ID from token
-      const facultyId = req.user.id || 1; // Default to ID 1 if not available
-      
-      // Get filter parameters
-      const { branch, semester } = req.query;
-      
-      // Build query
-      let query = `
-        SELECT 
-          s.*,
-          ss.cgpa,
-          ss.previous_cgpa,
-          ss.total_credits,
-          ss.completed_credits,
-          CASE 
-            WHEN ss.cgpa >= 8.5 THEN 'Excellent'
-            WHEN ss.cgpa >= 7.0 THEN 'Good'
-            WHEN ss.cgpa >= 5.0 THEN 'Average'
-            ELSE 'At Risk'
-          END as status
-        FROM students s
-        JOIN faculty_student_mapping fsm ON s.id = fsm.student_id
-        LEFT JOIN student_summary ss ON s.id = ss.student_id
-        WHERE fsm.faculty_id = ?
-      `;
-      
-      const queryParams = [facultyId];
-      
-      if (branch) {
-        query += ' AND s.branch = ?';
-        queryParams.push(branch);
-      }
-      
-      if (semester) {
-        query += ' AND s.current_semester = ?';
-        queryParams.push(semester);
-      }
-      
-      // Execute query
-      const [students] = await connection.query(query, queryParams);
-      
-      res.json(students);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      res.status(500).json({ 
-        error: 'Failed to fetch students',
-        details: error.message
-      });
-    } finally {
-      connection.release();
-    }
-  } catch (error) {
-    console.error('Database connection error:', error);
-    res.status(500).json({ 
-      error: 'Database connection error',
-      details: error.message
-    });
-  }
-});
-
-module.exports = router;
+export default router;

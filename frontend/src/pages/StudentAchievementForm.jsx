@@ -15,6 +15,7 @@ import {
   Container
 } from '@mui/material';
 import { useLocation } from 'react-router-dom';
+import { achievementsApi } from '../services/achievements-api';
 
 const StudentAchievementForm = () => {
   const [loading, setLoading] = useState(false);
@@ -35,11 +36,8 @@ const StudentAchievementForm = () => {
   useEffect(() => {
     const fetchLinkStatus = async () => {
       try {
-        const response = await fetch('http://localhost:5000/api/achievements/link-status');
-        if (response.ok) {
-          const data = await response.json();
-          setLinkActive(data.active);
-        }
+        const data = await achievementsApi.getLinkStatus();
+        setLinkActive(data.active);
       } catch (error) {
         console.error('Error fetching link status:', error);
       }
@@ -66,17 +64,7 @@ const StudentAchievementForm = () => {
     setError(null);
     
     try {
-      const response = await fetch('http://localhost:5000/api/achievements', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+      await achievementsApi.addAchievement(formData);
       
       setSuccess(true);
       setFormData({
@@ -170,6 +158,7 @@ const StudentAchievementForm = () => {
                     <MenuItem value="Sports">Sports</MenuItem>
                     <MenuItem value="Cultural">Cultural</MenuItem>
                     <MenuItem value="General">General</MenuItem>
+                    <MenuItem value="Other">Other</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -192,14 +181,11 @@ const StudentAchievementForm = () => {
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
-                  label="Achievement Date"
+                  label="Achievement Date (DD/MM/YYYY)"
                   name="achievement_date"
-                  type="date"
+                  placeholder="DD/MM/YYYY"
                   value={formData.achievement_date}
                   onChange={handleFormChange}
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
                   required
                 />
               </Grid>

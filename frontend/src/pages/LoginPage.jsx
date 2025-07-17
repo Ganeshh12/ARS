@@ -1,248 +1,218 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import './pages.css';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
-  Container,
-  Paper,
   Typography,
   TextField,
   Button,
+  Paper,
+  Container,
   Alert,
-  CircularProgress,
-  Grid,
-  Link,
-  Divider
+  CircularProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
-import { authService } from '../services/auth';
 import SchoolIcon from '@mui/icons-material/School';
+import { useAuth } from '../contexts/AuthContext';
+import Overview from '../assets/Overview.webp';
 
 const LoginPage = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // Get the redirect path from location state or default to dashboard
-  const from = location.state?.from?.pathname || '/';
-  
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { login } = useAuth();
+
   const handleLogin = async (e) => {
     e.preventDefault();
-    
-    if (!username || !password) {
-      setError('Please enter both username and password');
-      return;
-    }
-    
     setLoading(true);
     setError('');
-    
+
     try {
-      const response = await authService.login(username, password);
-      const user = response.user;
-      
-      // Redirect based on user role
-      if (user.role === 'faculty') {
-        navigate('/faculty/dashboard');
-      } else if (user.role === 'hod') {
-        navigate('/hod/dashboard');
-      } else if (user.role === 'principal') {
-        navigate('/principal/dashboard');
-      } else if (user.role === 'admin') {
-        navigate('/dashboard');
+      const result = await login(username, password);
+      if (result.success) {
+        switch (result.user.role) {
+          case 'faculty':
+          case 'proctor':
+            navigate('/faculty/dashboard');
+            break;
+          case 'hod':
+            navigate('/hod/dashboard');
+            break;
+          case 'principal':
+            navigate('/principal/dashboard');
+            break;
+          case 'admin':
+            navigate('/admin/dashboard');
+            break;
+          case 'student':
+            navigate('/student/dashboard');
+            break;
+          default:
+            navigate('/faculty/dashboard');
+        }
       } else {
-        navigate(from);
+        setError(result.error || 'Invalid username or password');
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      setError('Invalid username or password');
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Failed to login. Please try again.');
     } finally {
       setLoading(false);
     }
   };
-  
-  // Animation variants
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: 0.1
-      }
+      transition: { when: 'beforeChildren', staggerChildren: 0.1 }
     }
   };
-  
+
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1 }
   };
-  
+
   return (
-    <Container maxWidth="sm">
+    <Box sx={{ position: 'relative', minHeight: '100vh', overflow: 'hidden' }}>
+      {/* Fixed Background Image */}
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          py: 4
-        }}>
-          <motion.div variants={itemVariants}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              mb: 4,
-              flexDirection: 'column'
-            }}>
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 260,
-                  damping: 20
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.6 }} // adjust opacity for better visibility
+        exit={{ opacity: 0.3 }}
+        transition={{ duration: 0.4 }}
+        style={{
+          backgroundImage: `url(${Overview})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          height: '100%',
+          width: '100%',
+          zIndex: 0
+        }}
+      />
+
+      {/* Foreground Login Form */}
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 2 }}>
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '100vh',
+              py: 4
+            }}
+          >
+            <img
+              className="aditya-logo"
+              src="https://in8cdn.npfs.co/uploads/template/6102/1556/publish/images/au_logo.png?1737981139"
+              alt="au_logo"
+            />
+
+            <motion.div variants={itemVariants} style={{ width: '100%' }}>
+              <Paper
+                elevation={3}
+                sx={{
+                  p: 4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  borderRadius: 2,
+                  backdropFilter: 'blur(8px)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.85)'
                 }}
               >
-                <SchoolIcon sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
-              </motion.div>
-              <Typography variant="h4" component="h1" fontWeight="bold" align="center">
-                Automated Reporting System
-              </Typography>
-              <Typography variant="body1" color="text.secondary" align="center">
-                Sign in to access your dashboard
-              </Typography>
-            </Box>
-          </motion.div>
-          
-          <motion.div variants={itemVariants} style={{ width: '100%' }}>
-            <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-              {error && (
-                <Alert severity="error" sx={{ mb: 3 }}>
-                  {error}
-                </Alert>
-              )}
-              
-              <form onSubmit={handleLogin}>
-                <TextField
-                  label="Username"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={loading}
-                  required
-                />
-                
-                <TextField
-                  label="Password"
-                  type="password"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                  required
-                />
-                
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  size="large"
-                  disabled={loading}
-                  sx={{ 
-                    mt: 3, 
-                    mb: 2,
-                    py: 1.5,
-                    background: 'linear-gradient(45deg, #4568dc 30%, #b06ab3 90%)',
-                    '&:hover': {
-                      background: 'linear-gradient(45deg, #3557cb 30%, #9f59a2 90%)',
-                    }
-                  }}
-                >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
-                </Button>
-              </form>
-              
-              <Divider sx={{ my: 3 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Demo Accounts
+                <motion.div variants={itemVariants}>
+                  <div className="login-header">
+                    <div>
+                      <SchoolIcon
+                        sx={{ fontSize: 32, mr: 1, color: 'primary.main' }}
+                      />
+                    </div>
+                    <h1 className="login-title">Automated Reporting System</h1>
+                  </div>
+                </motion.div>
+
+                {error && (
+                  <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+
+                <form onSubmit={handleLogin} style={{ width: '100%' }}>
+                  <TextField
+                    margin="normal"
+                    required
+                    fullWidth
+                    id="username"
+                    label="Username"
+                    name="username"
+                    autoComplete="username"
+                    autoFocus
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                  />
+                  <TextField
+                    margin="normal"
+                    required
+                    fullWidth
+                    name="password"
+                    label="Password"
+                    type="password"
+                    id="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <Button
+                    type="submit"
+                    fullWidth
+                    variant="contained"
+                    disabled={loading}
+                    sx={{
+                      mt: 3,
+                      mb: 2,
+                      py: 1.5,
+                      background:
+                        'linear-gradient(45deg, #4568dc 30%, #b06ab3 90%)',
+                      '&:hover': {
+                        background:
+                          'linear-gradient(45deg, #3557cb 30%, #9f59a2 90%)'
+                      }
+                    }}
+                  >
+                    {loading ? (
+                      <CircularProgress size={24} color="inherit" />
+                    ) : (
+                      'Sign In'
+                    )}
+                  </Button>
+                </form>
+              </Paper>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+              <Box sx={{ mt: 3, textAlign: 'center' }}>
+                <Typography variant="body2" color="black">
+                  © {new Date().getFullYear()} Automated Reporting System
                 </Typography>
-              </Divider>
-              
-              <Grid container spacing={2}>
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    onClick={() => {
-                      setUsername('faculty');
-                      setPassword('faculty123');
-                    }}
-                  >
-                    Faculty
-                  </Button>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    onClick={() => {
-                      setUsername('hod');
-                      setPassword('hod123');
-                    }}
-                  >
-                    HoD
-                  </Button>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    onClick={() => {
-                      setUsername('principal');
-                      setPassword('principal123');
-                    }}
-                  >
-                    Principal
-                  </Button>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Button 
-                    variant="outlined" 
-                    fullWidth
-                    onClick={() => {
-                      setUsername('admin');
-                      setPassword('admin123');
-                    }}
-                  >
-                    Admin
-                  </Button>
-                </Grid>
-              </Grid>
-            </Paper>
-          </motion.div>
-          
-          <motion.div variants={itemVariants}>
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                © {new Date().getFullYear()} Ofen.in - All rights reserved.
-              </Typography>
-            </Box>
-          </motion.div>
-        </Box>
-      </motion.div>
-    </Container>
+              </Box>
+            </motion.div>
+          </Box>
+        </motion.div>
+      </Container>
+    </Box>
   );
 };
 

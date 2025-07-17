@@ -1,192 +1,172 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import StudentAchievementForm from './pages/StudentAchievementForm';
+import theme from './theme';
+import { StudentFilterProvider } from './contexts/StudentFilterContext';
+
+// Auth Context
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Layouts
-import Layout from './components/Layout';
 import DashboardLayout from './components/DashboardLayout';
-import FacultyDashboardLayout from './components/FacultyDashboardLayout';
-import HoDDashboardLayout from './components/HoDDashboardLayout';
-import PrincipalDashboardLayout from './components/PrincipalDashboardLayout';
 
-// Auth Pages
-import LoginPage from './pages/LoginPage';
-import UnauthorizedPage from './pages/UnauthorizedPage';
-import PrivateRoute from './components/PrivateRoute';
-
-// Common Pages
-import Dashboard from './pages/Dashboard';
-import StudentsPage from './pages/StudentsPage';
-import ReportingPage from './pages/ReportingPage';
-import AcademicReportsPage from './pages/AcademicReportsPage';
-import ProgressTrackingPage from './pages/ProgressTrackingPage';
+// Pages
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const UnauthorizedPage = React.lazy(()=>import('./pages/UnauthorizedPage'));
 
 // Faculty Pages
-import FacultyDashboard from './pages/faculty/FacultyDashboard';
-import StudentManagement from './pages/faculty/StudentManagement';
-import StudentDetail from './pages/faculty/StudentDetail';
-import AchievementsManagement from './pages/faculty/AchievementsManagement';
-import CertificationsManagement from './pages/faculty/CertificationsManagement';
-import FacultyReports from './pages/faculty/FacultyReports';
-import CounselingNotes from './pages/faculty/CounselingNotes';
+const FacultyDashboard = React.lazy(()=>import('./pages/faculty/FacultyDashboard/FacultyDashboard'));
+const StudentsList = React.lazy(()=>import('./pages/faculty/StudentsList'));
+const StudentDetail = React.lazy(()=>import('./pages/faculty/StudentDetail'));
+const AchievementsManagement = React.lazy(()=>import('./pages/faculty/AchievementEnhanced'));
+const CertificationsManagement = React.lazy(()=>import('./pages/faculty/CertificationsManagement'));
+const AdmissionsAnalytics = React.lazy(()=>import('./pages/faculty/AdmissionsAnalytics'));
+const FacultyReports = React.lazy(()=>import('./pages/faculty/FacultyReports/FacultyReports'));
+const CounselingNotes = React.lazy(()=>import('./pages/faculty/CounselingNotes'));
+const AcademicCalendar = React.lazy(()=>import('./pages/faculty/AcademicCalendar'));
+const CalendarAdmin = React.lazy(()=>import('./pages/faculty/CalendarAdmin'));
 
 // HoD Pages
-import HoDDashboard from './pages/hod/HoDDashboard';
-import DepartmentOverview from './pages/hod/DepartmentOverview';
-import FacultyManagement from './pages/hod/FacultyManagement';
-import DepartmentReports from './pages/hod/DepartmentReports';
-import CourseAnalytics from './pages/hod/CourseAnalytics';
-import ResourceManagement from './pages/hod/ResourceManagement';
+const HoDDashboard = React.lazy(()=>import('./pages/hod/HoDDashboard'));
+const DepartmentOverview = React.lazy(()=>import('./pages/hod/DepartmentOverview'));
+const FacultyManagement = React.lazy(()=>import('./pages/hod/FacultyManagement'));
+const CourseAnalytics = React.lazy(()=>import('./pages/hod/CourseAnalytics'));
+const ResourceManagement = React.lazy(()=>import('./pages/hod/ResourceManagement'));
+const DepartmentReports = React.lazy(()=>import('./pages/hod/DepartmentReports'));
 
 // Principal Pages
-import PrincipalDashboard from './pages/principal/PrincipalDashboard';
-import InstitutionOverview from './pages/principal/InstitutionOverview';
-import DepartmentManagement from './pages/principal/DepartmentManagement';
-import FacultyOverview from './pages/principal/FacultyOverview';
-import InstitutionReports from './pages/principal/InstitutionReports';
-import StrategicPlanning from './pages/principal/StrategicPlanning';
+const PrincipalDashboard = React.lazy(()=>import('./pages/principal/PrincipalDashboard'));
+const InstitutionOverview = React.lazy(()=>import('./pages/principal/InstitutionOverview'));
+const DepartmentManagement = React.lazy(()=>import('./pages/principal/DepartmentManagement'));
+const FacultyOverview = React.lazy(()=>import('./pages/principal/FacultyOverview'));
+const StrategicPlanning = React.lazy(()=>import('./pages/principal/StrategicPlanning'));
+const InstitutionReports = React.lazy(()=>import('./pages/principal/InstitutionReports'));
 
-import './App.css';
+// Admin Pages
+const AdminDashboard = React.lazy(()=>import('./pages/admin/AdminDashboard'));
+const UserManagement = React.lazy(()=>import('./pages/admin/UserManagement'));
+const SystemSettings = React.lazy(()=>import('./pages/admin/SystemSettings'));
 
-// Create a theme
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#4568dc',
-    },
-    secondary: {
-      main: '#b06ab3',
-    },
-    background: {
-      default: '#f5f5f5',
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h4: {
-      fontWeight: 600,
-    },
-    h5: {
-      fontWeight: 600,
-    },
-    h6: {
-      fontWeight: 600,
-    },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: '10px',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.04)',
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: '8px',
-          textTransform: 'none',
-          fontWeight: 500,
-        },
-        containedPrimary: {
-          background: 'linear-gradient(45deg, #4568dc 30%, #b06ab3 90%)',
-          boxShadow: '0 3px 5px 2px rgba(69, 104, 220, .3)',
-          '&:hover': {
-            background: 'linear-gradient(45deg, #3557cb 30%, #9f59a2 90%)',
-          },
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: '10px',
-        },
-      },
-    },
-  },
-});
+// Student Pages
+const StudentDashboard = React.lazy(()=>import('./pages/student/StudentDashboard'));
+const StudentAcademics = React.lazy(()=>import('./pages/student/StudentAcademics'));
+const StudentAchievements = React.lazy(()=>import('./pages/student/StudentAchievements'));
+const StudentCertifications = React.lazy(()=>import('./pages/student/StudentCertifications'));
+import CircularProgress from '@mui/material/CircularProgress';
+
+const GradientCircularProgress = () => {
+  return (
+    <React.Fragment>
+      <svg width={0} height={0}>
+        <defs>
+          <linearGradient id="my_gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#e01cd5" />
+            <stop offset="100%" stopColor="#1CB5E0" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <CircularProgress sx={{ 'svg circle': { stroke: 'url(#my_gradient)' } }} />
+    </React.Fragment>
+  );
+}
 
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Routes>
-          {/* Auth Routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/unauthorized" element={<UnauthorizedPage />} />
-          
-          {/* Faculty Routes */}
-          <Route path="/faculty" element={
-            <PrivateRoute allowedRoles={['faculty']}>
-              <FacultyDashboardLayout />
-            </PrivateRoute>
-          }>
-            <Route path="dashboard" element={<FacultyDashboard />} />
-            <Route path="students" element={<StudentManagement />} />
-            <Route path="students/:regNo" element={<StudentDetail />} />
-            <Route path="achievements" element={<AchievementsManagement />} />
-            <Route path="certifications" element={<CertificationsManagement />} />
-            <Route path="reports" element={<FacultyReports />} />
-            <Route path="counseling" element={<CounselingNotes />} />
-            <Route index element={<Navigate to="dashboard" replace />} />
-          </Route>
-          
-          {/* HoD Routes */}
-          <Route path="/hod" element={
-            <PrivateRoute allowedRoles={['hod']}>
-              <HoDDashboardLayout />
-            </PrivateRoute>
-          }>
-            <Route path="dashboard" element={<HoDDashboard />} />
-            <Route path="department" element={<DepartmentOverview />} />
-            <Route path="faculty" element={<FacultyManagement />} />
-            <Route path="reports" element={<DepartmentReports />} />
-            <Route path="courses" element={<CourseAnalytics />} />
-            <Route path="resources" element={<ResourceManagement />} />
-            <Route index element={<Navigate to="dashboard" replace />} />
-          </Route>
-          
-          {/* Principal Routes */}
-          <Route path="/principal" element={
-            <PrivateRoute allowedRoles={['principal']}>
-              <PrincipalDashboardLayout />
-            </PrivateRoute>
-          }>
-            <Route path="dashboard" element={<PrincipalDashboard />} />
-            <Route path="institution" element={<InstitutionOverview />} />
-            <Route path="departments" element={<DepartmentManagement />} />
-            <Route path="faculty" element={<FacultyOverview />} />
-            <Route path="reports" element={<InstitutionReports />} />
-            <Route path="planning" element={<StrategicPlanning />} />
-            <Route index element={<Navigate to="dashboard" replace />} />
-          </Route>
-          
-          {/* Legacy Routes (will be removed later) */}
-          <Route path="/" element={
-            <Layout>
-              <Routes>
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="students" element={<StudentsPage />} />
-                <Route path="reporting" element={<ReportingPage />} />
-                <Route path="academic-reports" element={<AcademicReportsPage />} />
-                <Route path="progress-tracking" element={<ProgressTrackingPage />} />
-                <Route index element={<Navigate to="dashboard" replace />} />
-              </Routes>
-            </Layout>
-          } />
-          
-          {/* Student Achievement Form */}
-          <Route path="/student-achievement-form" element={<StudentAchievementForm />} />
-          
-          {/* Default redirect */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <StudentFilterProvider>
+          <Router>
+            <Suspense fallback={<GradientCircularProgress />}>
+            <Routes>
+              {/* Auth Routes */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/unauthorized" element={<UnauthorizedPage />} />
+              
+              {/* Faculty Routes */}
+              <Route path="/faculty" element={
+                <ProtectedRoute requiredRole="faculty">
+                  <DashboardLayout userRole="faculty" />
+                </ProtectedRoute>
+              }>
+                <Route path="" element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<FacultyDashboard />} />
+                <Route path="students" element={<StudentsList />} />
+                <Route path="students/:regNo" element={<StudentDetail />} />
+                <Route path="achievements" element={<AchievementsManagement />} />
+                <Route path="certifications" element={<CertificationsManagement />} />
+                <Route path="admissions" element={<AdmissionsAnalytics />} />
+                <Route path="reports" element={<FacultyReports />} />
+                <Route path="counseling" element={<CounselingNotes />} />
+                <Route path="calendar" element={<CalendarAdmin />} />
+                <Route path="calendar-admin" element={<AcademicCalendar />} />
+              </Route>
+              
+              {/* HoD Routes */}
+              <Route path="/hod" element={
+                <ProtectedRoute requiredRole="hod">
+                  <DashboardLayout userRole="hod" />
+                </ProtectedRoute>
+              }>
+                <Route path="" element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<HoDDashboard />} />
+                <Route path="department" element={<DepartmentOverview />} />
+                <Route path="faculty" element={<FacultyManagement />} />
+                <Route path="courses" element={<CourseAnalytics />} />
+                <Route path="resources" element={<ResourceManagement />} />
+                <Route path="reports" element={<DepartmentReports />} />
+              </Route>
+              
+              {/* Principal Routes */}
+              <Route path="/principal" element={
+                <ProtectedRoute requiredRole="principal">
+                  <DashboardLayout userRole="principal" />
+                </ProtectedRoute>
+              }>
+                <Route path="" element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<PrincipalDashboard />} />
+                <Route path="institution" element={<InstitutionOverview />} />
+                <Route path="departments" element={<DepartmentManagement />} />
+                <Route path="faculty" element={<FacultyOverview />} />
+                <Route path="planning" element={<StrategicPlanning />} />
+                <Route path="reports" element={<InstitutionReports />} />
+              </Route>
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={
+                <ProtectedRoute requiredRole="admin">
+                  <DashboardLayout userRole="admin" />
+                </ProtectedRoute>
+              }>
+                <Route path="" element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="settings" element={<SystemSettings />} />
+              </Route>
+              
+              {/* Student Routes */}
+              <Route path="/student" element={
+                <ProtectedRoute requiredRole="student">
+                  <DashboardLayout userRole="student" />
+                </ProtectedRoute>
+              }>
+                <Route path="" element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<StudentDashboard />} />
+                <Route path="academics" element={<StudentAcademics />} />
+                <Route path="achievements" element={<StudentAchievements />} />
+                <Route path="certifications" element={<StudentCertifications />} />
+              </Route>
+              
+              {/* Default Route */}
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+            </Suspense>
+          </Router>
+        </StudentFilterProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

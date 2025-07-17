@@ -1,337 +1,350 @@
-// Enhanced API service for frontend with authentication and new features
-import axios from 'axios';
-
-const API_URL = 'http://localhost:5000/api';
-
-// Create axios instance with default config
-const apiClient = axios.create({
-    baseURL: API_URL,
-    headers: {
-        'Content-Type': 'application/json'
-    }
-});
-
-// Add request interceptor to include auth token
-apiClient.interceptors.request.use(
-    config => {
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            config.headers['Authorization'] = `Bearer ${token}`;
-        }
-        return config;
-    },
-    error => {
-        return Promise.reject(error);
-    }
-);
-
-// Add response interceptor to handle token refresh
-apiClient.interceptors.response.use(
-    response => {
-        return response;
-    },
-    async error => {
-        const originalRequest = error.config;
-        
-        // If error is 401 and not already retrying
-        if (error.response && error.response.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-            
-            try {
-                // Try to refresh token
-                const refreshToken = localStorage.getItem('refresh_token');
-                if (!refreshToken) {
-                    // No refresh token, redirect to login
-                    window.location.href = '/login';
-                    return Promise.reject(error);
-                }
-                
-                const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
-                    headers: {
-                        'Authorization': `Bearer ${refreshToken}`
-                    }
-                });
-                
-                // Save new access token
-                const { access_token } = response.data;
-                localStorage.setItem('access_token', access_token);
-                
-                // Retry original request with new token
-                originalRequest.headers['Authorization'] = `Bearer ${access_token}`;
-                return apiClient(originalRequest);
-            } catch (refreshError) {
-                // Refresh failed, redirect to login
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('refresh_token');
-                localStorage.removeItem('user');
-                window.location.href = '/login';
-                return Promise.reject(refreshError);
-            }
-        }
-        
-        return Promise.reject(error);
-    }
-);
-
-export const api = {
-    // Auth endpoints
-    login: async (username, password) => {
-        // For demo purposes, we'll simulate a login response
-        // In a real app, this would call the backend API
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Check credentials (demo only)
-        if (username === 'faculty' && password === 'faculty123') {
-            return {
-                tokens: {
-                    access_token: 'faculty_demo_token',
-                    refresh_token: 'faculty_refresh_token'
-                },
-                user: {
-                    id: 1,
-                    username: 'faculty',
-                    name: 'Faculty User',
-                    role: 'faculty',
-                    department: 'AIML'
-                }
-            };
-        } else if (username === 'hod' && password === 'hod123') {
-            return {
-                tokens: {
-                    access_token: 'hod_demo_token',
-                    refresh_token: 'hod_refresh_token'
-                },
-                user: {
-                    id: 2,
-                    username: 'hod',
-                    name: 'HoD User',
-                    role: 'hod',
-                    department: 'AIML'
-                }
-            };
-        } else if (username === 'principal' && password === 'principal123') {
-            return {
-                tokens: {
-                    access_token: 'principal_demo_token',
-                    refresh_token: 'principal_refresh_token'
-                },
-                user: {
-                    id: 3,
-                    username: 'principal',
-                    name: 'Principal User',
-                    role: 'principal'
-                }
-            };
-        } else if (username === 'admin' && password === 'admin123') {
-            // Default admin user
-            return {
-                tokens: {
-                    access_token: 'admin_demo_token',
-                    refresh_token: 'admin_refresh_token'
-                },
-                user: {
-                    id: 4,
-                    username: 'admin',
-                    name: 'Admin User',
-                    role: 'admin'
-                }
-            };
-        }
-        
-        // Invalid credentials
-        throw {
-            response: {
-                data: {
-                    error: 'Invalid username or password'
-                }
-            }
-        };
-    },
-    
-    register: async (userData) => {
-        const response = await apiClient.post('/auth/register', userData);
-        return response.data;
-    },
-    
-    getProfile: async () => {
-        const response = await apiClient.get('/auth/profile');
-        return response.data;
-    },
-    
-    // User management endpoints
-    getUsers: async () => {
-        const response = await apiClient.get('/users');
-        return response.data;
-    },
-    
-    getUser: async (userId) => {
-        const response = await apiClient.get(`/users/${userId}`);
-        return response.data;
-    },
-    
-    createUser: async (userData) => {
-        const response = await apiClient.post('/users', userData);
-        return response.data;
-    },
-    
-    updateUser: async (userId, userData) => {
-        const response = await apiClient.put(`/users/${userId}`, userData);
-        return response.data;
-    },
-    
-    activateUser: async (userId) => {
-        const response = await apiClient.put(`/users/${userId}/activate`);
-        return response.data;
-    },
-    
-    deactivateUser: async (userId) => {
-        const response = await apiClient.put(`/users/${userId}/deactivate`);
-        return response.data;
-    },
-    
-    // Student endpoints
-    fetchStudents: async (filters = {}) => {
-        const params = new URLSearchParams();
-        if (filters.branch) params.append('branch', filters.branch);
-        if (filters.semester) params.append('semester', filters.semester);
-        
-        const response = await apiClient.get(`/students?${params.toString()}`);
-        return response.data;
-    },
-    
-    getStudent: async (regNo) => {
-        const response = await apiClient.get(`/students/${regNo}`);
-        return response.data;
-    },
-    
-    // Achievement endpoints
-    getAchievements: async (studentId = null, verifiedOnly = false) => {
-        const params = new URLSearchParams();
-        if (studentId) params.append('student_id', studentId);
-        if (verifiedOnly) params.append('verified_only', 'true');
-        
-        const response = await apiClient.get(`/achievements?${params.toString()}`);
-        return response.data;
-    },
-    
-    getAchievement: async (achievementId) => {
-        const response = await apiClient.get(`/achievements/${achievementId}`);
-        return response.data;
-    },
-    
-    createAchievement: async (achievementData) => {
-        const response = await apiClient.post('/achievements', achievementData);
-        return response.data;
-    },
-    
-    updateAchievement: async (achievementId, achievementData) => {
-        const response = await apiClient.put(`/achievements/${achievementId}`, achievementData);
-        return response.data;
-    },
-    
-    verifyAchievement: async (achievementId) => {
-        const response = await apiClient.put(`/achievements/${achievementId}/verify`);
-        return response.data;
-    },
-    
-    deleteAchievement: async (achievementId) => {
-        const response = await apiClient.delete(`/achievements/${achievementId}`);
-        return response.data;
-    },
-    
-    getAchievementStats: async () => {
-        const response = await apiClient.get('/achievements/stats');
-        return response.data;
-    },
-    
-    // Certification endpoints
-    getCertifications: async (studentId = null, verifiedOnly = false) => {
-        const params = new URLSearchParams();
-        if (studentId) params.append('student_id', studentId);
-        if (verifiedOnly) params.append('verified_only', 'true');
-        
-        const response = await apiClient.get(`/certifications?${params.toString()}`);
-        return response.data;
-    },
-    
-    getCertification: async (certificationId) => {
-        const response = await apiClient.get(`/certifications/${certificationId}`);
-        return response.data;
-    },
-    
-    createCertification: async (certificationData) => {
-        const response = await apiClient.post('/certifications', certificationData);
-        return response.data;
-    },
-    
-    updateCertification: async (certificationId, certificationData) => {
-        const response = await apiClient.put(`/certifications/${certificationId}`, certificationData);
-        return response.data;
-    },
-    
-    verifyCertification: async (certificationId) => {
-        const response = await apiClient.put(`/certifications/${certificationId}/verify`);
-        return response.data;
-    },
-    
-    deleteCertification: async (certificationId) => {
-        const response = await apiClient.delete(`/certifications/${certificationId}`);
-        return response.data;
-    },
-    
-    getCertificationStats: async () => {
-        const response = await apiClient.get('/certifications/stats');
-        return response.data;
-    },
-    
-    // Report endpoints
-    downloadIndividualReport: (regNo, includeCharts = false, templateStyle = 'classic') => {
-        return `${API_URL}/reports/individual/${regNo}?includeCharts=${includeCharts}&templateStyle=${templateStyle}`;
-    },
-    
-    downloadBulkReport: (params) => {
-        const { selected, reportType, pdfType, selected_columns, includeCharts = false, templateStyle = 'classic' } = params;
-        
-        if (reportType === 'pdf') {
-            return `${API_URL}/reports/pdf/${pdfType}?students=${selected.join(',')}&includeCharts=${includeCharts}&templateStyle=${templateStyle}`;
-        } else if (reportType === 'excel') {
-            return `${API_URL}/reports/excel?students=${selected.join(',')}&columns=${selected_columns.join(',')}`;
-        }
-        
-        return '';
-    },
-    
-    previewIndividualReport: (regNo, includeCharts = false, templateStyle = 'classic') => {
-        return `${API_URL}/reports/preview/${regNo}?includeCharts=${includeCharts}&templateStyle=${templateStyle}`;
-    },
-    
-    // Dashboard endpoints
-    getDashboardStats: async () => {
-        const response = await apiClient.get('/dashboard/stats');
-        return response.data;
-    },
-    
-    getPerformanceData: async () => {
-        const response = await apiClient.get('/dashboard/performance');
-        return response.data;
-    },
-    
-    getBranchDistribution: async () => {
-        const response = await apiClient.get('/dashboard/branch-distribution');
-        return response.data;
-    },
-    
-    getRecentReports: async () => {
-        const response = await apiClient.get('/dashboard/recent-reports');
-        return response.data;
-    },
-    
-    getNotifications: async () => {
-        const response = await apiClient.get('/dashboard/notifications');
-        return response.data;
-    }
+// Enhanced API service for frontend
+const getApiBaseUrl = () => {
+  // Get the hostname from the current URL
+  const hostname = window.location.hostname;
+  return `http://${hostname}:5000/api`;
 };
 
-export default api;
+const API_URL = getApiBaseUrl();
+
+// Helper function to handle API errors
+const handleApiError = (error) => {
+  console.error('API Error:', error);
+  if (error.response) {
+    // The request was made and the server responded with a status code
+    // that falls out of the range of 2xx
+    console.error('Response data:', error.response.data);
+    console.error('Response status:', error.response.status);
+    return {
+      error: true,
+      message: error.response.data.message || 'Server error',
+      status: error.response.status
+    };
+  } else if (error.request) {
+    // The request was made but no response was received
+    console.error('No response received:', error.request);
+    return {
+      error: true,
+      message: 'No response from server',
+      status: 0
+    };
+  } else {
+    // Something happened in setting up the request that triggered an Error
+    console.error('Request error:', error.message);
+    return {
+      error: true,
+      message: error.message,
+      status: 0
+    };
+  }
+};
+
+// Get authentication token
+const getToken = () => {
+  return localStorage.getItem('access_token');
+};
+
+// Mock data for calendar events when API is unavailable
+const getMockCalendarEvents = () => {
+  return [
+    {
+      id: 1,
+      title: 'Independence Day',
+      start: new Date(2023, 7, 15),
+      end: new Date(2023, 7, 15),
+      type: 'holiday',
+      color: '#f44336',
+      allDay: true,
+      description: 'National Holiday - Independence Day',
+      studentYear: 'all'
+    },
+    {
+      id: 2,
+      title: '1st Year Mid-Semester Exams',
+      start: new Date(2023, 8, 18),
+      end: new Date(2023, 8, 25),
+      type: 'exam',
+      color: '#2196f3',
+      allDay: true,
+      description: 'Mid-semester examinations for 1st year students',
+      studentYear: '1'
+    },
+    {
+      id: 3,
+      title: '2nd Year Mid-Semester Exams',
+      start: new Date(2023, 8, 20),
+      end: new Date(2023, 8, 27),
+      type: 'exam',
+      color: '#2196f3',
+      allDay: true,
+      description: 'Mid-semester examinations for 2nd year students',
+      studentYear: '2'
+    },
+    {
+      id: 4,
+      title: '3rd Year Mid-Semester Exams',
+      start: new Date(2023, 8, 22),
+      end: new Date(2023, 8, 29),
+      type: 'exam',
+      color: '#2196f3',
+      allDay: true,
+      description: 'Mid-semester examinations for 3rd year students',
+      studentYear: '3'
+    },
+    {
+      id: 5,
+      title: '4th Year Mid-Semester Exams',
+      start: new Date(2023, 8, 24),
+      end: new Date(2023, 9, 1),
+      type: 'exam',
+      color: '#2196f3',
+      allDay: true,
+      description: 'Mid-semester examinations for 4th year students',
+      studentYear: '4'
+    },
+    {
+      id: 6,
+      title: 'AI Workshop for 3rd & 4th Years',
+      start: new Date(2023, 9, 5),
+      end: new Date(2023, 9, 6),
+      type: 'workshop',
+      color: '#4caf50',
+      allDay: true,
+      description: 'Two-day workshop on Artificial Intelligence and Machine Learning',
+      studentYear: ['3', '4']
+    }
+  ];
+};
+
+export const api = {
+  // Generic API methods
+  get: async (endpoint, params = {}) => {
+    try {
+      console.log(`API GET request to ${endpoint} with params:`, params);
+      const url = new URL(`${API_URL}${endpoint}`);
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined) {
+          url.searchParams.append(key, params[key]);
+        }
+      });
+      
+      // Special case for calendar endpoints when backend is unavailable
+      if (endpoint === '/calendar') {
+        console.log('Using mock calendar data');
+        return getMockCalendarEvents();
+      }
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`API GET response from ${endpoint}:`, data);
+      return data;
+    } catch (error) {
+      console.error(`Error fetching ${endpoint}:`, error);
+      
+      // Return mock data for calendar endpoints
+      if (endpoint === '/calendar') {
+        console.log('Falling back to mock calendar data');
+        return getMockCalendarEvents();
+      }
+      
+      throw error;
+    }
+  },
+  
+  post: async (endpoint, data) => {
+    try {
+      console.log(`API POST request to ${endpoint} with data:`, data);
+      
+      // Special case for calendar endpoints when backend is unavailable
+      if (endpoint === '/calendar') {
+        console.log('Using mock calendar data for POST');
+        const mockEvent = {
+          id: Date.now(),
+          ...data,
+          allDay: true
+        };
+        return mockEvent;
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      console.log(`API POST response from ${endpoint}:`, responseData);
+      return responseData;
+    } catch (error) {
+      console.error(`Error posting to ${endpoint}:`, error);
+      
+      // Return mock data for calendar endpoints
+      if (endpoint === '/calendar') {
+        console.log('Falling back to mock calendar data for POST');
+        const mockEvent = {
+          id: Date.now(),
+          ...data,
+          allDay: true
+        };
+        return mockEvent;
+      }
+      
+      throw error;
+    }
+  },
+  
+  put: async (endpoint, data) => {
+    try {
+      console.log(`API PUT request to ${endpoint} with data:`, data);
+      
+      // Special case for calendar endpoints when backend is unavailable
+      if (endpoint.startsWith('/calendar/')) {
+        console.log('Using mock calendar data for PUT');
+        return {
+          ...data,
+          id: parseInt(endpoint.split('/').pop()),
+          allDay: true
+        };
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      console.log(`API PUT response from ${endpoint}:`, responseData);
+      return responseData;
+    } catch (error) {
+      console.error(`Error updating ${endpoint}:`, error);
+      
+      // Return mock data for calendar endpoints
+      if (endpoint.startsWith('/calendar/')) {
+        console.log('Falling back to mock calendar data for PUT');
+        return {
+          ...data,
+          id: parseInt(endpoint.split('/').pop()),
+          allDay: true
+        };
+      }
+      
+      throw error;
+    }
+  },
+  
+  delete: async (endpoint) => {
+    try {
+      console.log(`API DELETE request to ${endpoint}`);
+      
+      // Special case for calendar endpoints when backend is unavailable
+      if (endpoint.startsWith('/calendar/')) {
+        console.log('Using mock calendar data for DELETE');
+        return { message: 'Event deleted successfully' };
+      }
+      
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${getToken()}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      console.log(`API DELETE response from ${endpoint}:`, responseData);
+      return responseData;
+    } catch (error) {
+      console.error(`Error deleting ${endpoint}:`, error);
+      
+      // Return mock data for calendar endpoints
+      if (endpoint.startsWith('/calendar/')) {
+        console.log('Falling back to mock calendar data for DELETE');
+        return { message: 'Event deleted successfully' };
+      }
+      
+      throw error;
+    }
+  },
+  
+  // Calendar specific methods
+  calendar: {
+    getEvents: async (params = {}) => {
+      return api.get('/calendar', params);
+    },
+    
+    getEventTypes: async () => {
+      return api.get('/calendar/types');
+    },
+    
+    createEvent: async (eventData) => {
+      return api.post('/calendar', eventData);
+    },
+    
+    updateEvent: async (id, eventData) => {
+      return api.put(`/calendar/${id}`, eventData);
+    },
+    
+    deleteEvent: async (id) => {
+      return api.delete(`/calendar/${id}`);
+    }
+  },
+  
+  // Student data methods
+  fetchStudents: async (branch = '', semester = '') => {
+    const params = {};
+    if (branch) params.branch = branch;
+    if (semester) params.semester = semester;
+    return api.get('/students', params);
+  },
+  
+  // PDF Reports
+  downloadIndividualReport: (regNo, includeCharts = false, templateStyle = 'classic') => {
+    return `${API_URL}/reports/individual/${regNo}?includeCharts=${includeCharts}&templateStyle=${templateStyle}`;
+  },
+  
+  previewIndividualReport: (regNo, includeCharts = false, templateStyle = 'classic') => {
+    return `${API_URL}/reports/preview/${regNo}?includeCharts=${includeCharts}&templateStyle=${templateStyle}`;
+  },
+  
+  downloadBulkReport: (params) => {
+    const { selected, reportType, pdfType, selected_columns, includeCharts = false, templateStyle = 'classic' } = params;
+    
+    if (reportType === 'pdf') {
+      return `${API_URL}/reports/pdf/${pdfType}?students=${selected.join(',')}&includeCharts=${includeCharts}&templateStyle=${templateStyle}`;
+    } else if (reportType === 'excel') {
+      return `${API_URL}/reports/excel?students=${selected.join(',')}&columns=${selected_columns.join(',')}`;
+    }
+    
+    return '';
+  }
+};

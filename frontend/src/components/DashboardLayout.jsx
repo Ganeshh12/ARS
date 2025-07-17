@@ -1,94 +1,259 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
-  Drawer,
+  CssBaseline,
   AppBar,
   Toolbar,
-  List,
   Typography,
-  Divider,
-  IconButton,
+  Drawer,
+  List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Divider,
+  IconButton,
   Avatar,
   Menu,
   MenuItem,
   Tooltip,
-  useMediaQuery,
   useTheme,
+  useMediaQuery
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  Dashboard as DashboardIcon,
-  People as StudentsIcon,
-  Assessment as ReportingIcon,
-  School as AcademicIcon,
-  Timeline as ProgressIcon,
-  Logout as LogoutIcon,
-  AccountCircle as AccountIcon,
-  Settings as SettingsIcon,
-  ChevronLeft as ChevronLeftIcon,
-} from '@mui/icons-material';
 
-const drawerWidth = 240;
+// Icons
+import MenuIcon from '@mui/icons-material/Menu';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PeopleIcon from '@mui/icons-material/People';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import CardMembershipIcon from '@mui/icons-material/CardMembership';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import BusinessIcon from '@mui/icons-material/Business';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import SettingsIcon from '@mui/icons-material/Settings';
+import PersonIcon from '@mui/icons-material/Person';
+import LogoutIcon from '@mui/icons-material/Logout';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import SearchIcon from '@mui/icons-material/Search';
+import SchoolIcon from '@mui/icons-material/School';
+import { useAuth } from '../contexts/AuthContext';
 
-const DashboardLayout = () => {
+
+// import useAuth from './contexts/AuthProvider';
+// console.log(useAuth);
+const drawerWidth = 260;
+
+const DashboardLayout = ({ userRole }) => {
   const theme = useTheme();
-  const navigate = useNavigate();
-  const location = useLocation();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  
   const [open, setOpen] = useState(!isMobile);
   const [anchorEl, setAnchorEl] = useState(null);
-  
+  const [notificationAnchorEl, setNotificationAnchorEl] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Get user from localStorage
-  const userString = localStorage.getItem('user');
-  const user = userString ? JSON.parse(userString) : { name: 'Admin User' };
-  
+  // const userString = localStorage.getItem('user');
+  // const user = userString ? JSON.parse(userString) : { first_name: 'User', last_name: '', role: userRole };
+  const {user,logout} = useAuth();
+
+  useEffect(() => {
+    // Close drawer on mobile by default
+    if (isMobile) {
+      setOpen(false);
+    } else {
+      setOpen(true);
+    }
+  }, [isMobile]);
+
   const handleDrawerToggle = () => {
     setOpen(!open);
   };
-  
-  const handleMenu = (event) => {
+
+  const handleProfileMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = () => {
+  const handleProfileMenuClose = () => {
     setAnchorEl(null);
   };
-  
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    navigate('/login');
+
+  const handleNotificationMenuOpen = (event) => {
+    setNotificationAnchorEl(event.currentTarget);
   };
-  
-  const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'Students', icon: <StudentsIcon />, path: '/students' },
-    { text: 'Reporting', icon: <ReportingIcon />, path: '/reporting' },
-    { text: 'Academic Reports', icon: <AcademicIcon />, path: '/academic-reports' },
-    { text: 'Progress Tracking', icon: <ProgressIcon />, path: '/progress-tracking' },
-  ];
+
+  const handleNotificationMenuClose = () => {
+    setNotificationAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  // Define menu items based on user role
+  const getMenuItems = () => {
+    switch (userRole) {
+      case 'faculty':
+        return [
+          { text: 'Dashboard', path: '/faculty/dashboard', icon: <DashboardIcon /> },
+          { text: 'Students', path: '/faculty/students', icon: <PeopleIcon /> },
+          { text: 'Achievements', path: '/faculty/achievements', icon: <EmojiEventsIcon /> },
+          { text: 'Certifications', path: '/faculty/certifications', icon: <CardMembershipIcon /> },
+          { text: 'Admissions', path: '/faculty/admissions', icon: <SchoolIcon /> },
+          { text: 'Reports', path: '/faculty/reports', icon: <AssessmentIcon /> },
+          { text: 'Calendar', path: '/faculty/calendar', icon: <CalendarMonthIcon /> },
+        ];
+      case 'hod':
+        return [
+          { text: 'Dashboard', path: '/hod/dashboard', icon: <DashboardIcon /> },
+          { text: 'Department Overview', path: '/hod/department', icon: <BusinessIcon /> },
+          { text: 'Faculty Management', path: '/hod/faculty', icon: <PeopleIcon /> },
+          { text: 'Student Analytics', path: '/hod/students', icon: <BarChartIcon /> },
+          { text: 'Course Analytics', path: '/hod/courses', icon: <AssessmentIcon /> },
+          { text: 'Reports', path: '/hod/reports', icon: <AssessmentIcon /> },
+          { text: 'Calendar', path: '/hod/calendar', icon: <CalendarMonthIcon /> },
+        ];
+      case 'principal':
+        return [
+          { text: 'Dashboard', path: '/principal/dashboard', icon: <DashboardIcon /> },
+          { text: 'Institution Overview', path: '/principal/institution', icon: <AccountBalanceIcon /> },
+          { text: 'Department Management', path: '/principal/departments', icon: <BusinessIcon /> },
+          { text: 'Faculty Overview', path: '/principal/faculty', icon: <PeopleIcon /> },
+          { text: 'Student Analytics', path: '/principal/students', icon: <BarChartIcon /> },
+          { text: 'Reports', path: '/principal/reports', icon: <AssessmentIcon /> },
+          { text: 'Calendar', path: '/principal/calendar', icon: <CalendarMonthIcon /> },
+        ];
+      case 'admin':
+        return [
+          { text: 'Dashboard', path: '/admin/dashboard', icon: <DashboardIcon /> },
+          { text: 'User Management', path: '/admin/users', icon: <PeopleIcon /> },
+          { text: 'System Settings', path: '/admin/settings', icon: <SettingsIcon /> },
+        ];
+      case 'student':
+        return [
+          { text: 'Student Details', path: '/student/dashboard', icon: <PersonIcon /> },
+          { text: 'Academics', path: '/student/academics', icon: <SchoolIcon /> },
+          { text: 'Achievements', path: '/student/achievements', icon: <EmojiEventsIcon /> },
+          { text: 'Certifications', path: '/student/certifications', icon: <CardMembershipIcon /> },
+        ];
+      default:
+        return [];
+    }
+  };
+
+  const menuItems = getMenuItems();
+
+  const drawerContent = (
+    <>
+      <Toolbar 
+        sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          px: [1],
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
+          <Avatar sx={{ mr: 2, bgcolor: '#4568dc' }}>
+            {user.first_name ? user.first_name[0] : 'U'}
+          </Avatar>
+          <Box>
+            <Typography variant="subtitle1" noWrap>
+              {user.first_name} {user.last_name}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
+            </Typography>
+          </Box>
+        </Box>
+        <IconButton onClick={handleDrawerToggle}>
+          <ChevronLeftIcon />
+        </IconButton>
+      </Toolbar>
+      
+      <Divider />
+      
+      <List>
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              selected={location.pathname === item.path}
+              onClick={() => navigate(item.path)}
+              sx={{
+                '&.Mui-selected': {
+                  backgroundColor: 'rgba(69, 104, 220, 0.1)',
+                  borderRight: '3px solid #4568dc',
+                  '&:hover': {
+                    backgroundColor: 'rgba(69, 104, 220, 0.2)',
+                  },
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color: location.pathname === item.path ? '#4568dc' : 'inherit',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText 
+                primary={
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: location.pathname === item.path ? 600 : 400,
+                      color: location.pathname === item.path ? '#4568dc' : 'inherit',
+                    }}
+                  >
+                    {item.text}
+                  </Typography>
+                }
+              />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+      
+      <Divider sx={{ mt: 'auto' }} />
+      
+      <List>
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleLogout}>
+            <ListItemIcon>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText primary="Logout" />
+          </ListItemButton>
+        </ListItem>
+      </List>
+    </>
+  );
 
   return (
     <Box sx={{ display: 'flex' }}>
+      <CssBaseline />
+      
+      {/* App Bar */}
       <AppBar
-        position="fixed"
-        sx={{
-          width: { md: open ? `calc(100% - ${drawerWidth}px)` : '100%' },
-          ml: { md: open ? `${drawerWidth}px` : 0 },
-          transition: theme.transitions.create(['width', 'margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
-          background: 'linear-gradient(45deg, #4568dc 30%, #b06ab3 90%)',
-        }}
-      >
+  position="fixed"
+  sx={{
+    width: { md: open ? `calc(100% - ${drawerWidth}px)` : '100%' },
+    ml: { md: open ? `${drawerWidth}px` : 0 },
+    transition: theme.transitions.create(['width', 'margin'], {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    background: 'linear-gradient(45deg, #4568dc 30%, #b06ab3 90%)',
+    zIndex: theme.zIndex.drawer + 1,
+    borderRadius: 0, // 👈 This ensures no curved edges
+  }}
+>
+
         <Toolbar>
           <IconButton
             color="inherit"
@@ -99,147 +264,179 @@ const DashboardLayout = () => {
           >
             <MenuIcon />
           </IconButton>
+          
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            Automated Reporting System
+            {userRole === 'student' ? 'Student Portal' : 'Automated Reporting System'}
           </Typography>
-          <Box>
-            <Tooltip title="Account settings">
-              <IconButton
-                size="large"
-                aria-label="account of current user"
-                aria-controls="menu-appbar"
-                aria-haspopup="true"
-                onClick={handleMenu}
-                color="inherit"
+          
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Tooltip title="Search">
+              <IconButton color="inherit" sx={{ mr: 1 }}>
+                <SearchIcon />
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Notifications">
+              <IconButton 
+                color="inherit" 
+                sx={{ mr: 1 }}
+                onClick={handleNotificationMenuOpen}
               >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                  {user.name ? user.name.charAt(0) : 'A'}
+                <NotificationsIcon />
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Account">
+              <IconButton
+                onClick={handleProfileMenuOpen}
+                size="small"
+                sx={{ ml: 1 }}
+                aria-controls={Boolean(anchorEl) ? 'account-menu' : undefined}
+                aria-haspopup="true"
+                aria-expanded={Boolean(anchorEl) ? 'true' : undefined}
+              >
+                <Avatar sx={{ width: 32, height: 32, bgcolor: '#b06ab3' }}>
+                  {user.first_name ? user.first_name[0] : 'U'}
                 </Avatar>
               </IconButton>
             </Tooltip>
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorEl}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <AccountIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Profile</ListItemText>
-              </MenuItem>
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <SettingsIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Settings</ListItemText>
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>
-                <ListItemIcon>
-                  <LogoutIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Logout</ListItemText>
-              </MenuItem>
-            </Menu>
           </Box>
         </Toolbar>
       </AppBar>
+      
+      {/* Mobile drawer */}
       <Drawer
-        variant={isMobile ? "temporary" : "persistent"}
-        open={isMobile ? open : true}
-        onClose={isMobile ? handleDrawerToggle : undefined}
+        variant="temporary"
+        open={isMobile && open}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true, // Better open performance on mobile
+        }}
         sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { 
+            boxSizing: 'border-box', 
+            width: drawerWidth 
           },
         }}
       >
-        <Toolbar
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            px: [1],
-          }}
-        >
-          <Typography variant="h6" component="div" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-            ARS
-          </Typography>
-          {!isMobile && (
-            <IconButton onClick={handleDrawerToggle}>
-              <ChevronLeftIcon />
-            </IconButton>
-          )}
-        </Toolbar>
-        <Divider />
-        <List>
-          {menuItems.map((item) => (
-            <ListItem key={item.text} disablePadding>
-              <ListItemButton
-                selected={location.pathname === item.path}
-                onClick={() => navigate(item.path)}
-              >
-                <ListItemIcon
-                  sx={{
-                    color: location.pathname === item.path ? 'primary.main' : 'inherit',
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                <ListItemText 
-                  primary={item.text} 
-                  primaryTypographyProps={{
-                    fontWeight: location.pathname === item.path ? 'bold' : 'normal',
-                    color: location.pathname === item.path ? 'primary.main' : 'inherit',
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-          ))}
-        </List>
-        <Divider />
-        <Box sx={{ p: 2, mt: 'auto' }}>
-          <Typography variant="body2" color="text.secondary">
-            Logged in as:
-          </Typography>
-          <Typography variant="body2" fontWeight="bold">
-            {user.name || 'Admin User'}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {user.role || 'Administrator'}
-          </Typography>
-        </Box>
+        {drawerContent}
       </Drawer>
+      
+      {/* Desktop drawer */}
+      <Drawer
+        variant="permanent"
+        sx={{
+          display: { xs: 'none', md: 'block' },
+          width: open ? drawerWidth : 0,
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+            overflowX: 'hidden',
+            transition: theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+            width: open ? drawerWidth : 0,
+          },
+        }}
+        open={open}
+      >
+        {drawerContent}
+      </Drawer>
+      
+      {/* Main content */}
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           p: 3,
-          width: { md: `calc(100% - ${open ? drawerWidth : 0}px)` },
-          ml: { md: open ? `${drawerWidth}px` : 0 },
-          transition: theme.transitions.create(['width', 'margin'], {
+          width: '100%',
+          transition: theme.transitions.create(['margin', 'width'], {
             easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
+            duration: theme.transitions.duration.enteringScreen,
           }),
         }}
       >
-        <Toolbar />
+        <Toolbar /> {/* This creates space at the top for the AppBar */}
         <Outlet />
       </Box>
+      
+      {/* Profile Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        id="account-menu"
+        open={Boolean(anchorEl)}
+        onClose={handleProfileMenuClose}
+        onClick={handleProfileMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={() => navigate(`/${userRole}/profile`)}>
+          <ListItemIcon>
+            <PersonIcon fontSize="small" />
+          </ListItemIcon>
+          Profile
+        </MenuItem>
+        <MenuItem onClick={() => navigate(`/${userRole}/settings`)}>
+          <ListItemIcon>
+            <SettingsIcon fontSize="small" />
+          </ListItemIcon>
+          Settings
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          Logout
+        </MenuItem>
+      </Menu>
+      
+      {/* Notifications Menu */}
+      <Menu
+        anchorEl={notificationAnchorEl}
+        id="notifications-menu"
+        open={Boolean(notificationAnchorEl)}
+        onClose={handleNotificationMenuClose}
+        onClick={handleNotificationMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem>
+          <Typography variant="body2">
+            <strong>New achievement added</strong>
+            <br />
+            Student Anusuri Bharathi added a new achievement
+          </Typography>
+        </MenuItem>
+        <MenuItem>
+          <Typography variant="body2">
+            <strong>Report generated</strong>
+            <br />
+            Semester report for CSE department is ready
+          </Typography>
+        </MenuItem>
+        <MenuItem>
+          <Typography variant="body2">
+            <strong>System update</strong>
+            <br />
+            New features have been added to the system
+          </Typography>
+        </MenuItem>
+        <Divider />
+        <Box sx={{ p: 1, textAlign: 'center' }}>
+          <Typography 
+            variant="body2" 
+            color="primary" 
+            sx={{ cursor: 'pointer', fontWeight: 'medium' }}
+            onClick={() => navigate('/notifications')}
+          >
+            View all notifications
+          </Typography>
+        </Box>
+      </Menu>
     </Box>
   );
 };

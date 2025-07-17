@@ -15,6 +15,8 @@ import {
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import CategoryIcon from '@mui/icons-material/Category';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import CardMembershipIcon from '@mui/icons-material/CardMembership';
 
 const ReportSelector = ({ onReportSelect }) => {
   const [reportType, setReportType] = useState('');
@@ -63,6 +65,18 @@ const ReportSelector = ({ onReportSelect }) => {
                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
                     <CategoryIcon sx={{ mr: 1 }} />
                     Subject-specific Analysis
+                  </Box>
+                </MenuItem>
+                <MenuItem value="achievements-report">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <EmojiEventsIcon sx={{ mr: 1 }} />
+                    Achievements Report
+                  </Box>
+                </MenuItem>
+                <MenuItem value="certifications-report">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <CardMembershipIcon sx={{ mr: 1 }} />
+                    Certifications Report
                   </Box>
                 </MenuItem>
               </Select>

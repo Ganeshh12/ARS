@@ -64,7 +64,7 @@ const StudentManagement = () => {
       const { facultyApi } = await import('../../services/faculty-api');
       
       // Use the API service to fetch students
-      const data = await facultyApi.getStudents({
+      const data = await facultyApi.getStudents1sdf({
         branch: filterParams.branch || '',
         semester: filterParams.semester || ''
       });
@@ -79,7 +79,7 @@ const StudentManagement = () => {
         status: student.status || (
           student.cgpa >= 8.5 ? 'Excellent' :
           student.cgpa >= 7.0 ? 'Good' :
-          student.cgpa >= 5.0 ? 'Average' : 'At Risk'
+          student.cgpa >= 6.5 ? 'Average' : 'At Risk'
         )
       }));
       

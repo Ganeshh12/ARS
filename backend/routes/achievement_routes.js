@@ -1,7 +1,7 @@
-const express = require('express');
-const router = express.Router();
-const pool = require('../config/database');
+import express from 'express';
+import pool from '../config/database.js';
 
+const router = express.Router();
 // Get all achievements
 router.get('/', async (req, res) => {
   try {
@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
           registration_number, 
           title, 
           description, 
-          DATE_FORMAT(achievement_date, '%Y-%m-%d') as achievement_date, 
+          DATE_FORMAT(achievement_date, '%d/%m/%Y') as achievement_date, 
           category,
           scope,
           created_at, 
@@ -55,7 +55,7 @@ router.get('/student/:regNo', async (req, res) => {
           registration_number, 
           title, 
           description, 
-          DATE_FORMAT(achievement_date, '%Y-%m-%d') as achievement_date, 
+          DATE_FORMAT(achievement_date, '%d/%m/%Y') as achievement_date, 
           category,
           scope,
           created_at, 
@@ -172,11 +172,24 @@ router.post('/', async (req, res) => {
     const connection = await pool.getConnection();
     
     try {
+      // Format date from DD/MM/YYYY to MySQL format (YYYY-MM-DD) if provided
+      let formattedDate = null;
+      if (achievement_date) {
+        // Check if it's in DD/MM/YYYY format
+        const dateParts = achievement_date.split('/');
+        if (dateParts.length === 3) {
+          formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+        } else {
+          formattedDate = achievement_date;
+        }
+      }
+      
+      // Insert achievement
       const [result] = await connection.query(`
         INSERT INTO achievements 
         (registration_number, title, description, category, achievement_date, scope)
         VALUES (?, ?, ?, ?, ?, ?)
-      `, [registration_number, title, description, category, achievement_date, scope]);
+      `, [registration_number, title, description, category, formattedDate, scope]);
       
       // Get the inserted achievement
       const [achievements] = await connection.query(`
@@ -185,7 +198,7 @@ router.post('/', async (req, res) => {
           registration_number, 
           title, 
           description, 
-          DATE_FORMAT(achievement_date, '%Y-%m-%d') as achievement_date, 
+          DATE_FORMAT(achievement_date, '%d/%m/%Y') as achievement_date, 
           category,
           scope,
           created_at, 
@@ -227,11 +240,23 @@ router.put('/:id', async (req, res) => {
     const connection = await pool.getConnection();
     
     try {
+      // Format date from DD/MM/YYYY to MySQL format (YYYY-MM-DD) if provided
+      let formattedDate = null;
+      if (achievement_date) {
+        // Check if it's in DD/MM/YYYY format
+        const dateParts = achievement_date.split('/');
+        if (dateParts.length === 3) {
+          formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+        } else {
+          formattedDate = achievement_date;
+        }
+      }
+      
       await connection.query(`
         UPDATE achievements 
         SET title = ?, description = ?, category = ?, achievement_date = ?, scope = ?
         WHERE id = ?
-      `, [title, description, category, achievement_date, scope, id]);
+      `, [title, description, category, formattedDate, scope, id]);
       
       // Get the updated achievement
       const [achievements] = await connection.query(`
@@ -240,7 +265,7 @@ router.put('/:id', async (req, res) => {
           registration_number, 
           title, 
           description, 
-          DATE_FORMAT(achievement_date, '%Y-%m-%d') as achievement_date, 
+          DATE_FORMAT(achievement_date, '%d/%m/%Y') as achievement_date, 
           category,
           scope,
           created_at, 
@@ -304,4 +329,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

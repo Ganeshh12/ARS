@@ -8,47 +8,38 @@ import {
   CardContent,
   CardActions,
   Button,
-  Chip,
   TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Chip,
   InputAdornment,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   CircularProgress,
   Alert,
-  IconButton,
-  Divider,
-  Snackbar,
-  Switch,
-  FormControlLabel
+  Divider
 } from '@mui/material';
 import { motion } from 'framer-motion';
-// Icons
 import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import LinkIcon from '@mui/icons-material/Link';
-import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import SportsIcon from '@mui/icons-material/Sports';
-import MusicNoteIcon from '@mui/icons-material/MusicNote';
-import CodeIcon from '@mui/icons-material/Code';
-import SchoolIcon from '@mui/icons-material/School';
+import { useStudentFilter } from '../../contexts/StudentFilterContext';
+import { facultyApi } from '../../services/faculty-api';
 
 const AchievementsManagement = () => {
+  const { studentFilter } = useStudentFilter();
   const [achievements, setAchievements] = useState([]);
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
-  const [dialogMode, setDialogMode] = useState('add'); // 'add' or 'edit'
-  const [snackbar, setSnackbar] = useState({open: false, message: '', severity: 'success'});
-  const [linkActive, setLinkActive] = useState(true);
+  const [dialogMode, setDialogMode] = useState('add');
   const [selectedAchievement, setSelectedAchievement] = useState(null);
   const [formData, setFormData] = useState({
     registration_number: '',
@@ -56,73 +47,65 @@ const AchievementsManagement = () => {
     description: '',
     category: '',
     achievement_date: '',
-    scope: ''
+    scope: 'Inside the College'
   });
-  const [students, setStudents] = useState([]);
 
-  const handleLinkToggle = async (e) => {
-    const newStatus = e.target.checked;
-    setLinkActive(newStatus);
-    
-    try {
-      await fetch('http://localhost:5000/api/achievements/link-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ active: newStatus }),
-      });
-    } catch (error) {
-      console.error('Error updating link status:', error);
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        when: "beforeChildren",
+        staggerChildren: 0.1
+      }
     }
   };
 
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
+  };
+
+  // Fetch data on component mount and when studentFilter changes
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Fetch students data
-        const studentsResponse = await fetch('http://localhost:5000/api/students');
-        if (!studentsResponse.ok) {
-          throw new Error(`HTTP error! Status: ${studentsResponse.status}`);
-        }
-        const studentsData = await studentsResponse.json();
-        
-        // Fetch achievements data
-        const achievementsResponse = await fetch('http://localhost:5000/api/achievements');
-        if (!achievementsResponse.ok) {
-          throw new Error(`HTTP error! Status: ${achievementsResponse.status}`);
-        }
-        const achievementsData = await achievementsResponse.json();
-        
-        // Fetch link status
-        const linkStatusResponse = await fetch('http://localhost:5000/api/achievements/link-status');
-        if (linkStatusResponse.ok) {
-          const linkStatusData = await linkStatusResponse.json();
-          setLinkActive(linkStatusData.active);
-        }
-        
-        // Map student names to achievements
-        const achievementsWithStudentNames = achievementsData.map(achievement => {
-          const student = studentsData.find(s => s.registration_number === achievement.registration_number);
-          return {
-            ...achievement,
-            student_name: student ? student.name : 'Unknown Student'
-          };
-        });
-        
-        setStudents(studentsData);
-        setAchievements(achievementsWithStudentNames);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError("Failed to load achievements. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchData();
-  }, []);
+  }, [studentFilter]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Get students based on filter
+      const studentsData = await facultyApi.getStudents({ filter: studentFilter });
+      setStudents(studentsData);
+      
+      // Get achievements for these students
+      const achievementsData = [];
+      for (const student of studentsData) {
+        try {
+          const studentDetails = await facultyApi.getStudentDetails(student.registration_number);
+          if (studentDetails.achievements && studentDetails.achievements.length > 0) {
+            studentDetails.achievements.forEach(achievement => {
+              achievementsData.push({
+                ...achievement,
+                student_name: student.name,
+                registration_number: student.registration_number
+              });
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching achievements for student ${student.registration_number}:`, error);
+        }
+      }
+      
+      setAchievements(achievementsData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setError("Failed to load achievements. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
@@ -149,7 +132,7 @@ const AchievementsManagement = () => {
       title: achievement.title,
       description: achievement.description || '',
       category: achievement.category,
-      achievement_date: achievement.achievement_date || '',
+      achievement_date: achievement.achievement_date ? achievement.achievement_date.split('T')[0] : '',
       scope: achievement.scope || 'Inside the College'
     });
     setOpenDialog(true);
@@ -164,74 +147,63 @@ const AchievementsManagement = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = () => {
-    // In a real implementation, this would call the API
-    if (dialogMode === 'add') {
-      // Mock adding a new achievement
-      const newAchievement = {
-        id: achievements.length + 1,
-        ...formData,
-        student_name: students.find(s => s.registration_number === formData.registration_number)?.name || 'Unknown Student'
-      };
-      setAchievements(prev => [...prev, newAchievement]);
-    } else {
-      // Mock updating an achievement
-      setAchievements(prev => 
-        prev.map(a => a.id === selectedAchievement.id ? { ...a, ...formData } : a)
-      );
+  const handleSubmit = async () => {
+    try {
+      if (dialogMode === 'add') {
+        // Add achievement logic would go here
+        // For now, just update the UI
+        const newAchievement = {
+          id: Date.now(), // Temporary ID
+          ...formData,
+          student_name: students.find(s => s.registration_number === formData.registration_number)?.name || 'Unknown'
+        };
+        setAchievements([...achievements, newAchievement]);
+      } else {
+        // Update achievement logic would go here
+        // For now, just update the UI
+        const updatedAchievements = achievements.map(a => 
+          a.id === selectedAchievement.id ? { ...a, ...formData } : a
+        );
+        setAchievements(updatedAchievements);
+      }
+      setOpenDialog(false);
+    } catch (error) {
+      console.error("Error submitting form:", error);
     }
-    
-    handleCloseDialog();
   };
 
-  const handleDelete = (id) => {
-    // In a real implementation, this would call the API
-    setAchievements(prev => prev.filter(a => a.id !== id));
+  const handleDelete = async (id) => {
+    try {
+      // Delete achievement logic would go here
+      // For now, just update the UI
+      setAchievements(achievements.filter(a => a.id !== id));
+    } catch (error) {
+      console.error("Error deleting achievement:", error);
+    }
   };
 
   // Filter achievements based on search term
-  const filteredAchievements = achievements.filter(achievement => {
-    return achievement.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      achievement.student_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (achievement.category && achievement.category.toLowerCase().includes(searchTerm.toLowerCase()));
-  });
+  const filteredAchievements = achievements.filter(achievement => 
+    achievement.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    achievement.student_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    achievement.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // Get icon based on achievement type
-  const getAchievementIcon = (type) => {
-    switch (type) {
-      case 'Technical':
-        return <CodeIcon />;
-      case 'Academic':
-        return <SchoolIcon />;
-      case 'Sports':
-        return <SportsIcon />;
-      case 'Cultural':
-        return <MusicNoteIcon />;
-      default:
-        return <EmojiEventsIcon />;
-    }
-  };
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        when: "beforeChildren",
-        staggerChildren: 0.1
-      }
-    }
-  };
-  
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 }
+  // Count achievements by category
+  const achievementCounts = {
+    total: filteredAchievements.length,
+    academic: filteredAchievements.filter(a => a.category?.toLowerCase() === 'academic').length,
+    technical: filteredAchievements.filter(a => a.category?.toLowerCase() === 'technical').length,
+    sports: filteredAchievements.filter(a => a.category?.toLowerCase() === 'sports').length,
+    cultural: filteredAchievements.filter(a => a.category?.toLowerCase() === 'cultural').length,
+    other: filteredAchievements.filter(a => 
+      !['academic', 'technical', 'sports', 'cultural'].includes(a.category?.toLowerCase())
+    ).length
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
         <CircularProgress />
       </Box>
     );
@@ -239,9 +211,9 @@ const AchievementsManagement = () => {
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
-      </Box>
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {error}
+      </Alert>
     );
   }
 
@@ -251,288 +223,249 @@ const AchievementsManagement = () => {
       initial="hidden"
       animate="visible"
     >
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-          Achievements Management
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Track and manage student achievements
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" gutterBottom>
+          {studentFilter === 'proctoring' 
+            ? "Manage Proctoring Students' Achievements" 
+            : "Manage All Students' Achievements"}
         </Typography>
       </Box>
 
-      <motion.div variants={itemVariants}>
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                placeholder="Search by title or student name"
-                value={searchTerm}
-                onChange={handleSearchChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-                variant="outlined"
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, alignItems: 'center' }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={linkActive}
-                    onChange={handleLinkToggle}
-                    color="primary"
-                  />
-                }
-                label={linkActive ? "Link Active" : "Link Inactive"}
-              />
-              <Button 
-                variant="outlined"
-                startIcon={<LinkIcon />}
-                onClick={() => {
-                  const url = `${window.location.origin}/student-achievement-form?active=${linkActive}`;
-                  navigator.clipboard.writeText(url);
-                  setSnackbar({open: true, message: 'Link copied to clipboard!', severity: 'success'});
-                }}
-                disabled={!linkActive}
-              >
-                Share Link
-              </Button>
-              <Button 
-                variant="contained" 
-                startIcon={<AddIcon />}
-                onClick={handleOpenAddDialog}
-                sx={{
-                  background: 'linear-gradient(45deg, #4568dc 30%, #b06ab3 90%)',
-                }}
-              >
-                Add Achievement
-              </Button>
-            </Grid>
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} sm={8}>
+            <TextField
+              fullWidth
+              placeholder="Search achievements..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
           </Grid>
-        </Paper>
-      </motion.div>
+          <Grid item xs={12} sm={4}>
+            <Button
+              fullWidth
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleOpenAddDialog}
+            >
+              Add Achievement
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
 
-      <motion.div variants={itemVariants}>
-        <Paper sx={{ width: '100%', mb: 3 }}>
-          <Box sx={{ p: 2 }}>
-            <Typography variant="subtitle1" component="div">
-              {filteredAchievements.length} Achievements
-            </Typography>
-          </Box>
-          
-          <Divider />
-          
-          <Box sx={{ p: 3 }}>
-            <Grid container spacing={3}>
-              {filteredAchievements.length > 0 ? (
-                filteredAchievements.map((achievement) => (
-                  <Grid item xs={12} md={6} lg={4} key={achievement.id}>
-                    <Card 
-                      sx={{ 
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out',
-                        '&:hover': {
-                          transform: 'translateY(-5px)',
-                          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
-                        },
-                      }}
-                    >
-                      <CardContent sx={{ flexGrow: 1 }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                          <Chip 
-                            icon={getAchievementIcon(achievement.category)}
-                            label={achievement.category || 'General'}
-                            color="primary"
-                            size="small"
-                          />
-                          
-                          {achievement.scope && (
-                            <Chip 
-                              label={achievement.scope}
-                              color={achievement.scope === 'Outside the College' ? 'info' : 'default'}
-                              size="small"
-                            />
-                          )}
-                        </Box>
-                        
-                        <Typography variant="h6" component="div" gutterBottom>
-                          {achievement.title}
-                        </Typography>
-                        
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          <strong>Student:</strong> {achievement.student_name}
-                        </Typography>
-                        
-                        {achievement.description && (
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            {achievement.description}
-                          </Typography>
-                        )}
-                        
-                        {achievement.achievement_date && (
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            <strong>Date:</strong> {achievement.achievement_date}
-                          </Typography>
-                        )}
-                      </CardContent>
-                      
-                      <CardActions sx={{ justifyContent: 'flex-end', p: 2, pt: 0 }}>
-                        <IconButton 
-                          size="small" 
-                          color="primary"
-                          onClick={() => handleOpenEditDialog(achievement)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        
-                        <IconButton 
-                          size="small" 
-                          color="error"
-                          onClick={() => handleDelete(achievement.id)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </CardActions>
-                    </Card>
-                  </Grid>
-                ))
-              ) : (
-                <Grid item xs={12}>
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography variant="body1" color="text.secondary">
-                      No achievements found matching the criteria
+      {/* Achievement Counts */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>Achievement Summary</Typography>
+        <Grid container spacing={2}>
+          <Grid item xs={4} sm={2}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" color="primary">{achievementCounts.total}</Typography>
+              <Typography variant="body2">Total</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={4} sm={2}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" color="info.main">{achievementCounts.academic}</Typography>
+              <Typography variant="body2">Academic</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={4} sm={2}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" color="success.main">{achievementCounts.technical}</Typography>
+              <Typography variant="body2">Technical</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={4} sm={2}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" color="warning.main">{achievementCounts.sports}</Typography>
+              <Typography variant="body2">Sports</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={4} sm={2}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" color="secondary.main">{achievementCounts.cultural}</Typography>
+              <Typography variant="body2">Cultural</Typography>
+            </Box>
+          </Grid>
+          <Grid item xs={4} sm={2}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="h4" color="text.secondary">{achievementCounts.other}</Typography>
+              <Typography variant="body2">Other</Typography>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Grid container spacing={3}>
+        {filteredAchievements.length > 0 ? (
+          filteredAchievements.map((achievement) => (
+            <Grid item xs={12} md={6} lg={4} key={achievement.id}>
+              <motion.div variants={itemVariants}>
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom>
+                      {achievement.title}
                     </Typography>
-                  </Box>
-                </Grid>
-              )}
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      {achievement.description}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Student:</strong> {achievement.student_name}
+                    </Typography>
+                    <Typography variant="body2">
+                      <strong>Date:</strong> {new Date(achievement.achievement_date).toLocaleDateString()}
+                    </Typography>
+                    <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
+                      <Chip label={achievement.category} color="primary" size="small" />
+                      <Chip label={achievement.scope} variant="outlined" size="small" />
+                    </Box>
+                  </CardContent>
+                  <CardActions>
+                    <Button
+                      size="small"
+                      startIcon={<EditIcon />}
+                      onClick={() => handleOpenEditDialog(achievement)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => handleDelete(achievement.id)}
+                    >
+                      Delete
+                    </Button>
+                  </CardActions>
+                </Card>
+              </motion.div>
             </Grid>
-          </Box>
-        </Paper>
-      </motion.div>
+          ))
+        ) : (
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="body1" color="text.secondary">
+                No achievements found. Add a new achievement to get started.
+              </Typography>
+            </Paper>
+          </Grid>
+        )}
+      </Grid>
 
       {/* Add/Edit Achievement Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           {dialogMode === 'add' ? 'Add New Achievement' : 'Edit Achievement'}
         </DialogTitle>
-        
-        <DialogContent dividers>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Student</InputLabel>
-                <Select
-                  name="registration_number"
-                  value={formData.registration_number}
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Student</InputLabel>
+                  <Select
+                    name="registration_number"
+                    value={formData.registration_number}
+                    onChange={handleFormChange}
+                    label="Student"
+                  >
+                    {students.map((student) => (
+                      <MenuItem key={student.registration_number} value={student.registration_number}>
+                        {student.name} ({student.registration_number})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Achievement Title"
+                  name="title"
+                  value={formData.title}
                   onChange={handleFormChange}
-                  label="Student"
-                  required
-                >
-                  {students.map(student => (
-                    <MenuItem key={student.registration_number} value={student.registration_number}>
-                      {student.name} ({student.registration_number})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Achievement Type</InputLabel>
-                <Select
-                  name="category"
-                  value={formData.category}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Description"
+                  name="description"
+                  value={formData.description}
                   onChange={handleFormChange}
-                  label="Achievement Type"
-                  required
-                >
-                  <MenuItem value="Academic">Academic</MenuItem>
-                  <MenuItem value="Technical">Technical</MenuItem>
-                  <MenuItem value="Sports">Sports</MenuItem>
-                  <MenuItem value="Cultural">Cultural</MenuItem>
-                  <MenuItem value="General">General</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Achievement Title"
-                name="title"
-                value={formData.title}
-                onChange={handleFormChange}
-                margin="normal"
-                required
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Scope</InputLabel>
-                <Select
-                  name="scope"
-                  value={formData.scope}
+                  multiline
+                  rows={3}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Category</InputLabel>
+                  <Select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleFormChange}
+                    label="Category"
+                  >
+                    <MenuItem value="Academic">Academic</MenuItem>
+                    <MenuItem value="Technical">Technical</MenuItem>
+                    <MenuItem value="Sports">Sports</MenuItem>
+                    <MenuItem value="Cultural">Cultural</MenuItem>
+                    <MenuItem value="Community Service">Community Service</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Achievement Date"
+                  name="achievement_date"
+                  type="date"
+                  value={formData.achievement_date}
                   onChange={handleFormChange}
-                  label="Scope"
-                  required
-                >
-                  <MenuItem value="Inside the College">Inside the College</MenuItem>
-                  <MenuItem value="Outside the College">Outside the College</MenuItem>
-                </Select>
-              </FormControl>
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Scope</InputLabel>
+                  <Select
+                    name="scope"
+                    value={formData.scope}
+                    onChange={handleFormChange}
+                    label="Scope"
+                  >
+                    <MenuItem value="Inside the College">Inside the College</MenuItem>
+                    <MenuItem value="University">University</MenuItem>
+                    <MenuItem value="State">State</MenuItem>
+                    <MenuItem value="National">National</MenuItem>
+                    <MenuItem value="International">International</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
             </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Achievement Date"
-                name="achievement_date"
-                type="date"
-                value={formData.achievement_date}
-                onChange={handleFormChange}
-                margin="normal"
-                InputLabelProps={{
-                  shrink: true,
-                }}
-              />
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Description"
-                name="description"
-                value={formData.description}
-                onChange={handleFormChange}
-                margin="normal"
-                multiline
-                rows={3}
-              />
-            </Grid>
-          </Grid>
+          </Box>
         </DialogContent>
-        
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">Save</Button>
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            color="primary"
+            disabled={!formData.registration_number || !formData.title || !formData.category}
+          >
+            {dialogMode === 'add' ? 'Add' : 'Update'}
+          </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={3000}
-        onClose={() => setSnackbar({...snackbar, open: false})}
-        message={snackbar.message}
-      />
     </motion.div>
   );
 };
