@@ -118,32 +118,32 @@ If you already have an existing database with student data:
 
 ## Project Screenshots
 <div style="text-align: center;">
-<h3>Login Page</h3>
+<h2>Login Page</h2>
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941628/ARS/login_y0abrf.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
 <div style="text-align: center;">
-<h1>Faculty Dashboard</h1>
+<h2>Faculty Dashboard</h2>
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941629/ARS/facultyDashboard_kzwdmu.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
 <div style="text-align: center;">
-<h1>Student Management</h1>
+<h2>Student Management</h2>
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941624/ARS/studentManagement_po3ret.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
 <div style="text-align: center;">
-<h1>Students Certification Management</h1>
+<h2>Students Certification Management</h2>
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941632/ARS/studentsCertifications_asxa01.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
 <div style="text-align: center;">
-<h1>Achievement Management System</h1>
+<h2>Achievement Management System</h2>
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941636/ARS/acheivementManagement_btffwe.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
 <div style="text-align: center;">
-<h1>Student Profile</h1>
+<h2>Student Profile</h2>
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941625/ARS/studentProfile_caxwfk.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
