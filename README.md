@@ -116,6 +116,14 @@ If you already have an existing database with student data:
 2. Make sure the column names match what the application expects (e.g., `registration_number` instead of `registration_no`)
 3. Run the setup script to create any missing tables
 
+## Project Screenshots
+<br/>
+<div style="text-align: center;">
+<h1>Login Page</h1>
+<img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941628/ARS/login_y0abrf.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
+</div>
+<br/>
+
 ## Troubleshooting
 
 If you encounter authentication issues:
