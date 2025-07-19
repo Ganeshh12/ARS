@@ -117,10 +117,24 @@ If you already have an existing database with student data:
 3. Run the setup script to create any missing tables
 
 ## Project Screenshots
-<br/>
 <div style="text-align: center;">
 <h1>Login Page</h1>
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941628/ARS/login_y0abrf.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
+</div>
+<br/>
+<div style="text-align: center;">
+<h1>Faculty Dashboard</h1>
+<img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941629/ARS/facultyDashboard_kzwdmu.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
+</div>
+<br/>
+<div style="text-align: center;">
+<h1>Student Management</h1>
+<img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941624/ARS/studentManagement_po3ret.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
+</div>
+<br/>
+<div style="text-align: center;">
+<h1>Students Certification Management</h1>
+<img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941632/ARS/studentsCertifications_asxa01.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
 
