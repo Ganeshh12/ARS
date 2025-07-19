@@ -137,6 +137,11 @@ If you already have an existing database with student data:
 <img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941632/ARS/studentsCertifications_asxa01.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
 </div>
 <br/>
+<div style="text-align: center;">
+<h1>Achievement Management System</h1>
+<img src="https://res.cloudinary.com/dshohwpwu/image/upload/v1752941636/ARS/acheivementManagement_btffwe.jpg" alt="gallery-output" style="max-width:70%;box-shadow:0 2.8px 2.2px rgba(0, 0, 0, 0.12)">
+</div>
+<br/>
 
 ## Troubleshooting
 
